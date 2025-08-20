@@ -18,6 +18,8 @@ This prevents race conditions, merge conflicts, and ensures orderly collaboratio
 npm install -g @thesammykis/beep-boop-mcp-server
 ```
 
+> **Note**: Package is automatically published via GitHub Actions when changes are pushed to main.
+
 ### From Source
 ```bash
 git clone https://github.com/thesammykins/beep_boop_mcp.git
