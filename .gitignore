@@ -145,3 +145,7 @@ yarn.lock.bak
 .env.local
 .vscode/settings.json
 .idea/workspace.xml
+
+# Beep/Boop coordination files
+beep
+boop

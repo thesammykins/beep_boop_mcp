@@ -101,7 +101,7 @@ export async function handleCreateBeep(params: CreateBeepParams): Promise<ToolRe
       };
     }
 
-    await createBeepFile(directory, message);
+    await createBeepFile(directory, message, undefined, config);
     
     return {
       content: [{
@@ -193,7 +193,7 @@ export async function handleUpdateBoop(params: UpdateBoopParams): Promise<ToolRe
       };
     }
 
-    await createBoopFile(directory, agentId, workDescription);
+    await createBoopFile(directory, agentId, workDescription, config);
     
     const actionText = status.status === WorkState.WORK_IN_PROGRESS 
       ? 'updated' 
@@ -276,7 +276,7 @@ export async function handleEndWork(params: EndWorkParams): Promise<ToolResponse
       };
     }
 
-    await endWorkAtomically(directory, agentId, message);
+    await endWorkAtomically(directory, agentId, message, config);
     
     return {
       content: [{

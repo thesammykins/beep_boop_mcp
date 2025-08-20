@@ -15,7 +15,8 @@
         "BEEP_BOOP_ALLOWED_DIRECTORIES": "",
         "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc",
         "BEEP_BOOP_ENABLE_METRICS": "false",
-        "BEEP_BOOP_TIMEZONE": "UTC"
+        "BEEP_BOOP_TIMEZONE": "UTC",
+        "BEEP_BOOP_MANAGE_GITIGNORE": "true"
       }
     }
   }

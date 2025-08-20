@@ -109,7 +109,7 @@ export function parseBoopContent(content: string): BoopFileContent {
 /**
  * Create a beep file with timestamp and optional message
  */
-export async function createBeepFile(directory: string, message?: string, completedBy?: string): Promise<void> {
+export async function createBeepFile(directory: string, message?: string, completedBy?: string, config?: BeepBoopConfig): Promise<void> {
   try {
     // Verify directory exists
     await fs.access(directory);
@@ -122,6 +122,11 @@ export async function createBeepFile(directory: string, message?: string, comple
     };
     
     await fs.writeFile(beepPath, JSON.stringify(content, null, 2));
+    
+    // Ensure .gitignore entries if configured
+    if (config) {
+      await ensureGitIgnoreEntries(directory, config);
+    }
   } catch (error) {
     if (error instanceof Error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -152,7 +157,8 @@ export async function createBeepFile(directory: string, message?: string, comple
 export async function createBoopFile(
   directory: string, 
   agentId: string, 
-  workDescription?: string
+  workDescription?: string,
+  config?: BeepBoopConfig
 ): Promise<void> {
   try {
     if (!agentId || agentId.trim().length === 0) {
@@ -174,6 +180,11 @@ export async function createBoopFile(
     };
     
     await fs.writeFile(boopPath, JSON.stringify(content, null, 2));
+    
+    // Ensure .gitignore entries if configured
+    if (config) {
+      await ensureGitIgnoreEntries(directory, config);
+    }
   } catch (error) {
     if (error instanceof CoordinationError) {
       throw error;
@@ -307,7 +318,8 @@ export async function getWorkStatus(directory: string): Promise<WorkStatus> {
 export async function endWorkAtomically(
   directory: string, 
   expectedAgentId: string, 
-  message?: string
+  message?: string,
+  config?: BeepBoopConfig
 ): Promise<void> {
   // First verify the current state
   const currentStatus = await getWorkStatus(directory);
@@ -331,11 +343,11 @@ export async function endWorkAtomically(
   // Remove boop file first, then create beep file
   try {
     await removeBoopFile(directory);
-    await createBeepFile(directory, message, expectedAgentId);
+    await createBeepFile(directory, message, expectedAgentId, config);
   } catch (error) {
     // If beep creation fails after boop removal, try to restore boop file
     try {
-      await createBoopFile(directory, expectedAgentId, 'Work restoration after failure');
+      await createBoopFile(directory, expectedAgentId, 'Work restoration after failure', config);
     } catch {
       // Best effort restoration failed
     }
@@ -460,5 +472,83 @@ export function validateDirectoryAccess(directory: string, config: BeepBoopConfi
       ErrorCode.PERMISSION_DENIED,
       directory
     );
+  }
+}
+
+/**
+ * Ensure beep/boop files are added to .gitignore if configured
+ */
+export async function ensureGitIgnoreEntries(
+  directory: string,
+  config: BeepBoopConfig
+): Promise<boolean> {
+  if (!config.manageGitIgnore) {
+    return false;
+  }
+
+  try {
+    const gitignorePath = join(directory, '.gitignore');
+    let gitignoreContent = '';
+    
+    // Read existing .gitignore if it exists
+    try {
+      gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+    } catch (error) {
+      // File doesn't exist, we'll create it
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        // Some other error occurred
+        return false;
+      }
+    }
+
+    // Check if entries already exist
+    const lines = gitignoreContent.split('\n');
+    const hasBeepEntry = lines.some(line => line.trim() === BEEP_FILE);
+    const hasBoopEntry = lines.some(line => line.trim() === BOOP_FILE);
+    const hasSection = lines.some(line => line.includes('# Beep/Boop coordination files'));
+    
+    if (hasBeepEntry && hasBoopEntry) {
+      return false; // Already configured
+    }
+
+    // Prepare entries to add
+    const entriesToAdd: string[] = [];
+    
+    if (!hasSection) {
+      // Add section header if not present
+      if (gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n')) {
+        entriesToAdd.push('');
+      }
+      entriesToAdd.push('# Beep/Boop coordination files');
+    }
+    
+    if (!hasBeepEntry) {
+      entriesToAdd.push(BEEP_FILE);
+    }
+    
+    if (!hasBoopEntry) {
+      entriesToAdd.push(BOOP_FILE);
+    }
+
+    if (entriesToAdd.length === 0) {
+      return false; // Nothing to add
+    }
+
+    // Append new entries
+    const updatedContent = gitignoreContent + (gitignoreContent.length > 0 ? '\n' : '') + entriesToAdd.join('\n') + '\n';
+    
+    await fs.writeFile(gitignorePath, updatedContent, 'utf-8');
+    
+    if (config.logLevel === 'debug') {
+      console.error(`📝 Added beep/boop entries to .gitignore in ${directory}`);
+    }
+    
+    return true;
+  } catch (error) {
+    // Log error but don't fail the main operation
+    if (config.logLevel === 'debug') {
+      console.error(`⚠️ Could not update .gitignore: ${error}`);
+    }
+    return false;
   }
 }

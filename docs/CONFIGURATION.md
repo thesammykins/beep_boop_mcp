@@ -89,6 +89,12 @@ cp mcp-config.enterprise.json mcp-config.json
 | `BEEP_BOOP_FAIL_ON_STALE` | `false` | Fail operations if stale files detected |
 | `BEEP_BOOP_MAX_CONCURRENT_OPERATIONS` | `5` | Maximum concurrent file operations |
 
+### Git Integration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_MANAGE_GITIGNORE` | `true` | Automatically add beep/boop files to .gitignore |
+
 ## 🏗️ Configuration Profiles
 
 ### Development Environment
@@ -203,6 +209,25 @@ BEEP_BOOP_NOTIFICATION_WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/UR
 ```bash
 BEEP_BOOP_NOTIFICATION_WEBHOOK="https://discord.com/api/webhooks/YOUR/WEBHOOK"
 ```
+
+### Git Integration
+
+**Automatic .gitignore management (default enabled):**
+```bash
+BEEP_BOOP_MANAGE_GITIGNORE=true
+```
+
+**Disable .gitignore management:**
+```bash
+BEEP_BOOP_MANAGE_GITIGNORE=false
+```
+
+When enabled, the server automatically:
+- Adds `beep` and `boop` entries to `.gitignore` when creating coordination files
+- Creates `.gitignore` if it doesn't exist
+- Appends entries only if they don't already exist
+- Adds a section header for organization
+- Gracefully handles permission errors
 
 ### Audit Logging
 

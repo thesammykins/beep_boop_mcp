@@ -17,7 +17,8 @@
         "BEEP_BOOP_ENABLE_METRICS": "true",
         "BEEP_BOOP_TIMEZONE": "UTC",
         "BEEP_BOOP_DEV_MODE": "true",
-        "BEEP_BOOP_WATCH_MODE": "true"
+        "BEEP_BOOP_WATCH_MODE": "true",
+        "BEEP_BOOP_MANAGE_GITIGNORE": "true"
       }
     }
   }

@@ -45,6 +45,9 @@ export interface BeepBoopConfig {
   forceCleanupOnStart: boolean;
   failOnStale: boolean;
   maxConcurrentOperations: number;
+  
+  // Git integration
+  manageGitIgnore: boolean;
 }
 
 /**
@@ -93,7 +96,10 @@ export function loadConfig(): BeepBoopConfig {
     watchMode: process.env.BEEP_BOOP_WATCH_MODE === 'true',
     forceCleanupOnStart: process.env.BEEP_BOOP_FORCE_CLEANUP_ON_START === 'true',
     failOnStale: process.env.BEEP_BOOP_FAIL_ON_STALE === 'true',
-    maxConcurrentOperations: parseInt(process.env.BEEP_BOOP_MAX_CONCURRENT_OPERATIONS || '5', 10)
+    maxConcurrentOperations: parseInt(process.env.BEEP_BOOP_MAX_CONCURRENT_OPERATIONS || '5', 10),
+    
+    // Git integration
+    manageGitIgnore: process.env.BEEP_BOOP_MANAGE_GITIGNORE !== 'false' // Default to true
   };
   
   // Validate configuration
@@ -242,5 +248,6 @@ export function printConfigSummary(config: BeepBoopConfig): void {
     console.error(`   • Team prefix required: ${config.requireTeamPrefix}`);
     console.error(`   • Backup enabled: ${config.backupEnabled}`);
     console.error(`   • Audit logging: ${config.auditLogEnabled}`);
+    console.error(`   • Git integration: ${config.manageGitIgnore ? 'enabled' : 'disabled'}`);
   }
 }

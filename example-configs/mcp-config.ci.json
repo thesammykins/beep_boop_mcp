@@ -19,7 +19,8 @@
         "BEEP_BOOP_FORCE_CLEANUP_ON_START": "true",
         "BEEP_BOOP_CI_MODE": "true",
         "BEEP_BOOP_FAIL_ON_STALE": "false",
-        "BEEP_BOOP_MAX_CONCURRENT_OPERATIONS": "10"
+        "BEEP_BOOP_MAX_CONCURRENT_OPERATIONS": "10",
+        "BEEP_BOOP_MANAGE_GITIGNORE": "true"
       }
     }
   }

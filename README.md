@@ -202,6 +202,12 @@ Manually creates a beep file to signal work completion.
 - Avoid generic names: `agent`, `ai`, `assistant`
 - Include version/instance info for disambiguation
 
+### Git Integration
+- ✅ **Automatic .gitignore**: Coordination files are automatically added to `.gitignore`
+- ✅ **Repository Clean**: `beep` and `boop` files won't be committed to version control
+- ⚙️ **Configurable**: Use `BEEP_BOOP_MANAGE_GITIGNORE=false` to disable if needed
+- 🔧 **Smart Detection**: Only adds entries if they don't already exist
+
 ### Error Handling
 - Always check status before claiming work
 - Provide graceful fallbacks when directories are busy  
