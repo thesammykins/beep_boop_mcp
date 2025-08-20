@@ -129,8 +129,11 @@ jobs:
           echo "" >> CHANGELOG.md
         fi
         
-        # Add new version entry
-        sed -i "2i\\## [$VERSION] - $DATE\\n" CHANGELOG.md
+        # Create a temporary file for the new changelog
+        echo "# Changelog" > CHANGELOG.tmp
+        echo "" >> CHANGELOG.tmp
+        echo "## [$VERSION] - $DATE" >> CHANGELOG.tmp
+        echo "" >> CHANGELOG.tmp
         
         # Add commit messages since last tag
         LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -141,8 +144,17 @@ jobs:
         fi
         
         if [ -n "$COMMITS" ]; then
-          sed -i "3i\\$COMMITS\\n" CHANGELOG.md
+          echo "$COMMITS" >> CHANGELOG.tmp
+          echo "" >> CHANGELOG.tmp
         fi
+        
+        # Append the rest of the existing changelog (skip first 2 lines if they exist)
+        if [ -f CHANGELOG.md ] && [ $(wc -l < CHANGELOG.md) -gt 2 ]; then
+          tail -n +3 CHANGELOG.md >> CHANGELOG.tmp
+        fi
+        
+        # Replace the original changelog
+        mv CHANGELOG.tmp CHANGELOG.md
 
     - name: Commit version bump and changelog
       if: steps.changes.outputs.has_changes == 'true'
