@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "beep-boop-coordination-ci": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "BEEP_BOOP_DEFAULT_MAX_AGE_HOURS": "0.5",
+        "BEEP_BOOP_AUTO_CLEANUP_ENABLED": "true",
+        "BEEP_BOOP_LOG_LEVEL": "warn",
+        "BEEP_BOOP_FILE_PERMISSIONS": "0644",
+        "BEEP_BOOP_BACKUP_ENABLED": "false",
+        "BEEP_BOOP_BACKUP_DIR": "./ci-backups",
+        "BEEP_BOOP_MAX_AGENT_ID_LENGTH": "100",
+        "BEEP_BOOP_ALLOWED_DIRECTORIES": "./src,./tests,./packages",
+        "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc,node_modules,dist",
+        "BEEP_BOOP_ENABLE_METRICS": "true",
+        "BEEP_BOOP_TIMEZONE": "UTC",
+        "BEEP_BOOP_FORCE_CLEANUP_ON_START": "true",
+        "BEEP_BOOP_CI_MODE": "true",
+        "BEEP_BOOP_FAIL_ON_STALE": "false",
+        "BEEP_BOOP_MAX_CONCURRENT_OPERATIONS": "10"
+      }
+    }
+  }
+}

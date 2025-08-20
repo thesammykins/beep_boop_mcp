@@ -1,0 +1,34 @@
+# Source files (dist contains compiled versions)
+src/
+tsconfig.json
+
+# Development files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Test files
+test/
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Development configs
+.env
+.env.local
+.env.development
+
+# Git
+.git/
+.gitignore
+
+# Documentation that's not needed in package
+AGENT_COORDINATION_RULE.md
+
+# Example configs
+mcp-config.json

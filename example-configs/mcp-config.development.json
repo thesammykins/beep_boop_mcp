@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "beep-boop-coordination-dev": {
+      "command": "tsx",
+      "args": ["./src/index.ts"],
+      "env": {
+        "NODE_ENV": "development",
+        "BEEP_BOOP_DEFAULT_MAX_AGE_HOURS": "1",
+        "BEEP_BOOP_AUTO_CLEANUP_ENABLED": "true",
+        "BEEP_BOOP_LOG_LEVEL": "debug",
+        "BEEP_BOOP_FILE_PERMISSIONS": "0644",
+        "BEEP_BOOP_BACKUP_ENABLED": "false",
+        "BEEP_BOOP_BACKUP_DIR": "./dev-backups",
+        "BEEP_BOOP_MAX_AGENT_ID_LENGTH": "50",
+        "BEEP_BOOP_ALLOWED_DIRECTORIES": "./src,./test,./examples",
+        "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc,node_modules",
+        "BEEP_BOOP_ENABLE_METRICS": "true",
+        "BEEP_BOOP_TIMEZONE": "UTC",
+        "BEEP_BOOP_DEV_MODE": "true",
+        "BEEP_BOOP_WATCH_MODE": "true"
+      }
+    }
+  }
+}

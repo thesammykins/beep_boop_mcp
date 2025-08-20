@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "beep-boop-coordination-enterprise": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "BEEP_BOOP_DEFAULT_MAX_AGE_HOURS": "8",
+        "BEEP_BOOP_AUTO_CLEANUP_ENABLED": "false",
+        "BEEP_BOOP_LOG_LEVEL": "info",
+        "BEEP_BOOP_FILE_PERMISSIONS": "0644",
+        "BEEP_BOOP_BACKUP_ENABLED": "true",
+        "BEEP_BOOP_BACKUP_DIR": "./coordination-backups",
+        "BEEP_BOOP_MAX_AGENT_ID_LENGTH": "150",
+        "BEEP_BOOP_ALLOWED_DIRECTORIES": "./src,./packages,./services,./apps",
+        "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc,node_modules,dist,.git",
+        "BEEP_BOOP_ENABLE_METRICS": "true",
+        "BEEP_BOOP_TIMEZONE": "America/New_York",
+        "BEEP_BOOP_REQUIRE_TEAM_PREFIX": "true",
+        "BEEP_BOOP_TEAM_PREFIXES": "frontend-,backend-,devops-,qa-",
+        "BEEP_BOOP_ENABLE_NOTIFICATIONS": "true",
+        "BEEP_BOOP_NOTIFICATION_WEBHOOK": "",
+        "BEEP_BOOP_AUDIT_LOG_ENABLED": "true",
+        "BEEP_BOOP_AUDIT_LOG_PATH": "./logs/coordination-audit.log",
+        "BEEP_BOOP_MAX_WORK_DURATION_HOURS": "24",
+        "BEEP_BOOP_WARN_THRESHOLD_HOURS": "4",
+        "BEEP_BOOP_ESCALATION_ENABLED": "true",
+        "BEEP_BOOP_ESCALATION_AFTER_HOURS": "12"
+      }
+    }
+  }
+}

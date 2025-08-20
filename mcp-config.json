@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "beep-boop-coordination": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "BEEP_BOOP_DEFAULT_MAX_AGE_HOURS": "24",
+        "BEEP_BOOP_AUTO_CLEANUP_ENABLED": "false",
+        "BEEP_BOOP_LOG_LEVEL": "info",
+        "BEEP_BOOP_FILE_PERMISSIONS": "0644",
+        "BEEP_BOOP_BACKUP_ENABLED": "true",
+        "BEEP_BOOP_BACKUP_DIR": "./.beep-boop-backups",
+        "BEEP_BOOP_MAX_AGENT_ID_LENGTH": "100",
+        "BEEP_BOOP_ALLOWED_DIRECTORIES": "",
+        "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc",
+        "BEEP_BOOP_ENABLE_METRICS": "false",
+        "BEEP_BOOP_TIMEZONE": "UTC"
+      }
+    }
+  }
+}
