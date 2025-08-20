@@ -194,6 +194,26 @@ export async function handleUpdateBoop(params: UpdateBoopParams): Promise<ToolRe
       };
     }
 
+    // CRITICAL FIX: Ensure atomic state transition
+    // If transitioning from WORK_ALLOWED to WORK_IN_PROGRESS, remove beep file first
+    if (status.status === WorkState.WORK_ALLOWED && status.beepExists) {
+      try {
+        const { promises: fs } = await import('fs');
+        const { join } = await import('path');
+        const beepPath = join(directory, 'beep');
+        await fs.unlink(beepPath);
+      } catch (error) {
+        // If we can't remove beep file, don't proceed to avoid invalid state
+        return {
+          content: [{
+            type: "text",
+            text: `❌ Failed to remove existing beep file during state transition: ${error}. Cannot safely claim directory.`
+          }],
+          isError: true
+        };
+      }
+    }
+
     await createBoopFile(directory, agentId, workDescription, config);
     
     const actionText = status.status === WorkState.WORK_IN_PROGRESS 

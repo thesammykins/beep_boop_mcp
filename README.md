@@ -13,7 +13,7 @@ This prevents race conditions, merge conflicts, and ensures orderly collaboratio
 
 ## 📦 Installation
 
-### From NPM (when published)
+### From NPM (Recommended)
 ```bash
 npm install -g beep-boop-mcp-server
 ```
@@ -29,11 +29,16 @@ npm run build
 ## 🚀 Quick Start
 
 ### 1. Start the MCP Server
+
+#### For NPM Installation
+The server starts automatically when called by your MCP client. No manual startup required.
+
+#### For Source Installation
 ```bash
-# Development
+# Development mode with hot reload
 npm run dev
 
-# Production
+# Production mode
 npm start
 ```
 
@@ -41,6 +46,18 @@ npm start
 
 Add to your MCP client configuration (e.g., Claude Desktop):
 
+#### For NPM Installation
+```json
+{
+  "mcpServers": {
+    "beep-boop-coordination": {
+      "command": "beep-boop-mcp-server"
+    }
+  }
+}
+```
+
+#### For Source Installation
 ```json
 {
   "mcpServers": {
@@ -332,9 +349,22 @@ npm run dev    # Development mode with hot reload
 
 ### Contributing
 1. Fork the [repository](https://github.com/thesammykins/beep_boop_mcp)
-2. Create a feature branch  
+2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make changes with tests
-4. Submit pull request
+4. Push to your branch: `git push origin feature/my-feature`
+5. Create a Pull Request
+
+### Automated Publishing
+This project uses GitHub Actions for automated testing and publishing:
+
+- **Feature Branches**: Tests run automatically on push
+- **Main Branch**: Automatic version bumping, npm publishing, and GitHub releases
+- **Version Bumping**: Based on commit message keywords:
+  - `BREAKING`/`major`: Major version (1.0.0 → 2.0.0)
+  - `feat`/`feature`/`minor`: Minor version (1.0.0 → 1.1.0)  
+  - Everything else: Patch version (1.0.0 → 1.0.1)
+
+See [GitHub Workflow Setup](.github/WORKFLOW_SETUP.md) for detailed configuration.
 
 ## 📄 License
 

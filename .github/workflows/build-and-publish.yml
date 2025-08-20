@@ -1,0 +1,197 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Run tests
+      run: npm test
+
+    - name: Check TypeScript compilation
+      run: npx tsc --noEmit
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+
+  publish:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Configure git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet HEAD~1 HEAD -- . ':!package-lock.json'; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Determine version bump type
+      id: version-bump
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        # Check commit messages since last tag to determine version bump
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        COMMIT_MESSAGES=$(git log $LAST_TAG..HEAD --pretty=format:"%s" || git log --pretty=format:"%s")
+        
+        if echo "$COMMIT_MESSAGES" | grep -qiE "(breaking|BREAKING|major)"; then
+          echo "bump=major" >> $GITHUB_OUTPUT
+        elif echo "$COMMIT_MESSAGES" | grep -qiE "(feat|feature|minor)"; then
+          echo "bump=minor" >> $GITHUB_OUTPUT
+        else
+          echo "bump=patch" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Bump version
+      id: version
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        BUMP_TYPE="${{ steps.version-bump.outputs.bump }}"
+        NEW_VERSION=$(npm version $BUMP_TYPE --no-git-tag-version)
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "version_number=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+
+    - name: Update CHANGELOG
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        VERSION="${{ steps.version.outputs.version_number }}"
+        DATE=$(date +%Y-%m-%d)
+        
+        # Create or update CHANGELOG.md
+        if [ ! -f CHANGELOG.md ]; then
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+        fi
+        
+        # Add new version entry
+        sed -i "2i\\## [$VERSION] - $DATE\\n" CHANGELOG.md
+        
+        # Add commit messages since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" --reverse)
+        else
+          COMMITS=$(git log --pretty=format:"- %s" --reverse)
+        fi
+        
+        if [ -n "$COMMITS" ]; then
+          sed -i "3i\\$COMMITS\\n" CHANGELOG.md
+        fi
+
+    - name: Commit version bump and changelog
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        git add package.json package-lock.json CHANGELOG.md
+        git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} [skip ci]"
+        git tag ${{ steps.version.outputs.new_version }}
+
+    - name: Push changes
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        git push origin main
+        git push origin ${{ steps.version.outputs.new_version }}
+
+    - name: Publish to npm
+      if: steps.changes.outputs.has_changes == 'true'
+      run: npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create GitHub Release
+      if: steps.changes.outputs.has_changes == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.new_version }}
+        release_name: Release ${{ steps.version.outputs.new_version }}
+        body: |
+          ## Changes in ${{ steps.version.outputs.new_version }}
+          
+          This release was automatically generated from the latest commits to main.
+          
+          ### What's Changed
+          See the [CHANGELOG.md](https://github.com/thesammykins/beep_boop_mcp/blob/main/CHANGELOG.md) for detailed changes.
+          
+          **Full Changelog**: https://github.com/thesammykins/beep_boop_mcp/compare/v${{ steps.version-bump.outputs.previous_version }}...${{ steps.version.outputs.new_version }}
+        draft: false
+        prerelease: false
+
+  notify-discord:
+    needs: [publish]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Send Discord notification
+      if: needs.publish.outputs.published == 'true'
+      run: |
+        curl -H "Content-Type: application/json" \
+             -X POST \
+             -d "{\"content\":\"🚀 **New release published!**\n\n📦 **beep-boop-mcp-server** v${{ needs.publish.outputs.version }}\n\n✅ Successfully built and published to npm\n🔗 [View on GitHub](https://github.com/thesammykins/beep_boop_mcp/releases/latest)\"}" \
+             ${{ secrets.DISCORD_WEBHOOK_URL }} || echo "Discord notification failed (webhook not configured)"

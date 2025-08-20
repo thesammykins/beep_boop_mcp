@@ -2,7 +2,13 @@
 src/
 tsconfig.json
 
+# Source maps (too large for distribution)
+*.map
+*.js.map
+*.d.ts.map
+
 # Development files
+.github/
 .vscode/
 .idea/
 *.log
@@ -32,6 +38,7 @@ example-webhooks.env
 # Development documentation (keep core docs)
 WEBHOOKS.md
 AGENT_COORDINATION_RULE.md
+WARP.md
 
 # Example configs
 mcp-config.json
@@ -42,3 +49,6 @@ logs/
 *.audit.log
 beep
 boop
+
+# Development scripts and tools
+select-config.sh
