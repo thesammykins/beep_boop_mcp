@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2025-08-20
+
+- fix: Configure npm package for public publishing
+- Merge branch 'main' of https://github.com/thesammykins/beep_boop_mcp
+
 ## [1.1.1] - 2025-08-20
 
 - docs: Add automated publishing note to README and test NPM_TOKEN workflow
