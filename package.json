@@ -18,9 +18,17 @@
     "config:ci": "./select-config.sh ci",
     "config:enterprise": "./select-config.sh enterprise"
   },
-  "keywords": ["mcp", "server", "coordination", "monorepo", "typescript"],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["mcp", "server", "coordination", "monorepo", "typescript", "ai-agents"],
+  "author": "thesammykins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thesammykins/beep_boop_mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thesammykins/beep_boop_mcp/issues"
+  },
+  "homepage": "https://github.com/thesammykins/beep_boop_mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
     "zod": "^3.25.76"

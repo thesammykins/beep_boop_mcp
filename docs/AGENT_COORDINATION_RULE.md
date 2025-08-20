@@ -214,6 +214,18 @@ Add to your MCP client configuration:
 }
 ```
 
+**Or from source:**
+```json
+{
+  "mcpServers": {
+    "beep-boop-coordination": {
+      "command": "node",
+      "args": ["./path/to/beep_boop_mcp/dist/index.js"]
+    }
+  }
+}
+```
+
 ## Summary
 
 The beep/boop coordination pattern ensures safe parallel work in shared codebases by:

@@ -20,8 +20,8 @@ npm install -g beep-boop-mcp-server
 
 ### From Source
 ```bash
-git clone <repository>
-cd beep-boop-mcp-server
+git clone https://github.com/thesammykins/beep_boop_mcp.git
+cd beep_boop_mcp
 npm install
 npm run build
 ```
@@ -325,7 +325,7 @@ npm run dev    # Development mode with hot reload
 ```
 
 ### Contributing
-1. Fork the repository
+1. Fork the [repository](https://github.com/thesammykins/beep_boop_mcp)
 2. Create a feature branch  
 3. Make changes with tests
 4. Submit pull request
@@ -357,9 +357,9 @@ MIT License - see LICENSE file
 ## 📞 Support
 
 For issues and questions:
-- Check existing GitHub issues
+- Check [existing GitHub issues](https://github.com/thesammykins/beep_boop_mcp/issues)
 - Review the troubleshooting guide above
-- Create new issue with reproduction steps
+- [Create new issue](https://github.com/thesammykins/beep_boop_mcp/issues/new) with reproduction steps
 
 ---
 
