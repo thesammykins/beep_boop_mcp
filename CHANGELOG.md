@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2025-08-20
+
+- docs: Add automated publishing note to README and test NPM_TOKEN workflow
+- Merge branch 'main' of https://github.com/thesammykins/beep_boop_mcp
+
 ## [1.1.0] - 2025-08-20
 
 - feat: Complete Beep/Boop MCP Server with configuration system
