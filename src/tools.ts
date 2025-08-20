@@ -25,6 +25,7 @@ import {
   cleanupStaleBoopAndClaim
 } from './file-operations.js';
 import { loadConfig } from './config.js';
+import { NotificationManager, NotificationType, createNotificationManager } from './notification-service.js';
 
 /**
  * Schema for create_beep tool parameters
@@ -199,6 +200,32 @@ export async function handleUpdateBoop(params: UpdateBoopParams): Promise<ToolRe
       ? 'updated' 
       : 'created';
     
+    // Send notification if enabled
+    if (config.enableNotifications && status.status !== WorkState.WORK_IN_PROGRESS) {
+      try {
+        const notificationManager = createNotificationManager(config);
+        const payload = NotificationManager.createPayload(
+          NotificationType.WORK_STARTED,
+          `Work started by agent ${agentId}`,
+          directory,
+          agentId,
+          workDescription
+        );
+        
+        // Don't await - send in background to avoid blocking the operation
+        notificationManager.sendNotification(payload).catch(error => {
+          if (config.logLevel === 'debug') {
+            console.error('📤 Notification failed (non-blocking):', error);
+          }
+        });
+      } catch (error) {
+        // Silently fail notifications - don't block main operation
+        if (config.logLevel === 'debug') {
+          console.error('📤 Notification setup failed:', error);
+        }
+      }
+    }
+    
     return {
       content: [{
         type: "text",
@@ -276,7 +303,52 @@ export async function handleEndWork(params: EndWorkParams): Promise<ToolResponse
       };
     }
 
+    // Get work start time for duration calculation
+    let workStartTime: Date | undefined;
+    try {
+      const preStatus = await getWorkStatus(directory);
+      workStartTime = preStatus.boopTimestamp;
+    } catch {
+      // Ignore errors - we'll proceed without duration info
+    }
+
     await endWorkAtomically(directory, agentId, message, config);
+    
+    // Send completion notification if enabled
+    if (config.enableNotifications) {
+      try {
+        const notificationManager = createNotificationManager(config);
+        
+        // Calculate work duration if we have start time
+        let metadata: Record<string, any> | undefined;
+        if (workStartTime) {
+          const duration = Date.now() - workStartTime.getTime();
+          const durationMinutes = Math.round(duration / 60000);
+          metadata = { durationMinutes, durationMs: duration };
+        }
+        
+        const payload = NotificationManager.createPayload(
+          NotificationType.WORK_COMPLETED,
+          `Work completed by agent ${agentId}${message ? `: ${message}` : ''}`,
+          directory,
+          agentId,
+          message || 'Work completed',
+          metadata
+        );
+        
+        // Don't await - send in background to avoid blocking the operation
+        notificationManager.sendNotification(payload).catch(error => {
+          if (config.logLevel === 'debug') {
+            console.error('📤 Notification failed (non-blocking):', error);
+          }
+        });
+      } catch (error) {
+        // Silently fail notifications - don't block main operation
+        if (config.logLevel === 'debug') {
+          console.error('📤 Notification setup failed:', error);
+        }
+      }
+    }
     
     return {
       content: [{
@@ -358,6 +430,32 @@ export async function handleCheckStatus(params: CheckStatusParams): Promise<Tool
             }
           }
           
+          // Send stale detection notification first
+          const config = loadConfig();
+          if (config.enableNotifications) {
+            try {
+              const notificationManager = createNotificationManager(config);
+              const payload = NotificationManager.createPayload(
+                NotificationType.STALE_DETECTED,
+                `Stale work detected from agent ${status.agentId || 'unknown'} (${ageDescription} old)`,
+                directory,
+                status.agentId || 'unknown',
+                undefined,
+                { ageHours: (Date.now() - status.boopTimestamp.getTime()) / (1000 * 60 * 60), threshold: maxAgeHours }
+              );
+              
+              notificationManager.sendNotification(payload).catch(error => {
+                if (config.logLevel === 'debug') {
+                  console.error('📤 Stale detection notification failed:', error);
+                }
+              });
+            } catch (error) {
+              if (config.logLevel === 'debug') {
+                console.error('📤 Stale detection notification setup failed:', error);
+              }
+            }
+          }
+          
           // Perform automatic cleanup
           try {
             const cleanup = await cleanupStaleBoopAndClaim(
@@ -369,6 +467,31 @@ export async function handleCheckStatus(params: CheckStatusParams): Promise<Tool
             
             cleanupPerformed = true;
             cleanupMessage = cleanup.message;
+            
+            // Send cleanup notification
+            if (config.enableNotifications) {
+              try {
+                const notificationManager = createNotificationManager(config);
+                const payload = NotificationManager.createPayload(
+                  NotificationType.CLEANUP_PERFORMED,
+                  `Stale work cleaned up${newAgentId ? ` and claimed by ${newAgentId}` : ''}`,
+                  directory,
+                  newAgentId || status.agentId || 'system',
+                  newWorkDescription,
+                  { previousAgent: status.agentId, newAgent: newAgentId }
+                );
+                
+                notificationManager.sendNotification(payload).catch(error => {
+                  if (config.logLevel === 'debug') {
+                    console.error('📤 Cleanup notification failed:', error);
+                  }
+                });
+              } catch (error) {
+                if (config.logLevel === 'debug') {
+                  console.error('📤 Cleanup notification setup failed:', error);
+                }
+              }
+            }
             
             // Get updated status after cleanup
             status = await getWorkStatus(directory);

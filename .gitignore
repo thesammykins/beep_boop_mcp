@@ -149,3 +149,12 @@ yarn.lock.bak
 # Beep/Boop coordination files
 beep
 boop
+
+# Webhook notification logs and audit files
+logs/
+*.audit.log
+coordination-audit.log
+
+# Local webhook configuration (keep example files)
+.env.webhooks
+webhook-test.local.*

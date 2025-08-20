@@ -26,7 +26,14 @@ export interface BeepBoopConfig {
   // Monitoring and metrics
   enableMetrics: boolean;
   enableNotifications: boolean;
-  notificationWebhook?: string;
+  notificationWebhook?: string; // Legacy - backward compatibility
+  
+  // Webhook notifications
+  notificationService: 'discord' | 'slack' | 'both';
+  discordWebhookUrl?: string;
+  slackWebhookUrl?: string;
+  notificationRetryAttempts: number;
+  notificationTimeoutMs: number;
   
   // Audit and compliance
   auditLogEnabled: boolean;
@@ -80,6 +87,13 @@ export function loadConfig(): BeepBoopConfig {
     enableNotifications: process.env.BEEP_BOOP_ENABLE_NOTIFICATIONS === 'true',
     notificationWebhook: process.env.BEEP_BOOP_NOTIFICATION_WEBHOOK,
     
+    // Webhook notifications
+    notificationService: (process.env.BEEP_BOOP_NOTIFICATION_SERVICE || 'both') as BeepBoopConfig['notificationService'],
+    discordWebhookUrl: process.env.BEEP_BOOP_DISCORD_WEBHOOK_URL,
+    slackWebhookUrl: process.env.BEEP_BOOP_SLACK_WEBHOOK_URL,
+    notificationRetryAttempts: parseInt(process.env.BEEP_BOOP_NOTIFICATION_RETRY_ATTEMPTS || '3', 10),
+    notificationTimeoutMs: parseInt(process.env.BEEP_BOOP_NOTIFICATION_TIMEOUT_MS || '5000', 10),
+    
     // Audit and compliance
     auditLogEnabled: process.env.BEEP_BOOP_AUDIT_LOG_ENABLED === 'true',
     auditLogPath: process.env.BEEP_BOOP_AUDIT_LOG_PATH || './logs/coordination-audit.log',
@@ -101,6 +115,9 @@ export function loadConfig(): BeepBoopConfig {
     // Git integration
     manageGitIgnore: process.env.BEEP_BOOP_MANAGE_GITIGNORE !== 'false' // Default to true
   };
+  
+  // Handle backward compatibility for legacy webhook config
+  handleLegacyWebhookConfig(config);
   
   // Validate configuration
   validateConfig(config);
@@ -234,6 +251,52 @@ export function getEnvironmentDefaults(): Partial<BeepBoopConfig> {
 }
 
 /**
+ * Handle backward compatibility for legacy webhook configuration
+ */
+function handleLegacyWebhookConfig(config: BeepBoopConfig): void {
+  if (config.notificationWebhook && !config.discordWebhookUrl && !config.slackWebhookUrl) {
+    // Legacy BEEP_BOOP_NOTIFICATION_WEBHOOK was set, try to determine service type
+    if (config.notificationWebhook.includes('discord.com')) {
+      config.discordWebhookUrl = config.notificationWebhook;
+      config.notificationService = 'discord';
+      if (config.logLevel === 'debug') {
+        console.error('⚠️ Using legacy notification webhook as Discord URL');
+      }
+    } else if (config.notificationWebhook.includes('hooks.slack.com')) {
+      config.slackWebhookUrl = config.notificationWebhook;
+      config.notificationService = 'slack';
+      if (config.logLevel === 'debug') {
+        console.error('⚠️ Using legacy notification webhook as Slack URL');
+      }
+    } else {
+      // Unknown service, default to Slack format
+      config.slackWebhookUrl = config.notificationWebhook;
+      config.notificationService = 'slack';
+      if (config.logLevel === 'debug') {
+        console.error('⚠️ Using legacy notification webhook as Slack URL (default)');
+      }
+    }
+  }
+}
+
+/**
+ * Check if webhook URLs are valid format
+ */
+export function validateWebhookUrls(config: BeepBoopConfig): string[] {
+  const errors: string[] = [];
+  
+  if (config.discordWebhookUrl && !config.discordWebhookUrl.includes('discord.com/api/webhooks')) {
+    errors.push('Discord webhook URL must be a valid Discord webhook URL');
+  }
+  
+  if (config.slackWebhookUrl && !config.slackWebhookUrl.includes('hooks.slack.com')) {
+    errors.push('Slack webhook URL must be a valid Slack webhook URL');
+  }
+  
+  return errors;
+}
+
+/**
  * Print configuration summary (for debugging)
  */
 export function printConfigSummary(config: BeepBoopConfig): void {
@@ -248,6 +311,14 @@ export function printConfigSummary(config: BeepBoopConfig): void {
     console.error(`   • Team prefix required: ${config.requireTeamPrefix}`);
     console.error(`   • Backup enabled: ${config.backupEnabled}`);
     console.error(`   • Audit logging: ${config.auditLogEnabled}`);
+    console.error(`   • Notifications: ${config.enableNotifications ? 'enabled' : 'disabled'}`);
+    if (config.enableNotifications) {
+      console.error(`   • Notification service: ${config.notificationService}`);
+      console.error(`   • Discord webhook: ${config.discordWebhookUrl ? 'configured' : 'not configured'}`);
+      console.error(`   • Slack webhook: ${config.slackWebhookUrl ? 'configured' : 'not configured'}`);
+      console.error(`   • Retry attempts: ${config.notificationRetryAttempts}`);
+      console.error(`   • Timeout: ${config.notificationTimeoutMs}ms`);
+    }
     console.error(`   • Git integration: ${config.manageGitIgnore ? 'enabled' : 'disabled'}`);
   }
 }

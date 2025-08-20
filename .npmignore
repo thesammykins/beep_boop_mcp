@@ -10,25 +10,35 @@ tsconfig.json
 *.swp
 .DS_Store
 
-# Test files
+# Test files and scripts
 test/
 tests/
 *.test.ts
 *.test.js
 *.spec.ts
 *.spec.js
+test-webhooks.ts
 
 # Development configs
 .env
 .env.local
 .env.development
+example-webhooks.env
 
 # Git
 .git/
 .gitignore
 
-# Documentation that's not needed in package
+# Development documentation (keep core docs)
+WEBHOOKS.md
 AGENT_COORDINATION_RULE.md
 
 # Example configs
 mcp-config.json
+
+# Logs and temporary files
+logs/
+*.log
+*.audit.log
+beep
+boop
