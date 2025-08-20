@@ -15,7 +15,7 @@ This prevents race conditions, merge conflicts, and ensures orderly collaboratio
 
 ### From NPM (Recommended)
 ```bash
-npm install -g beep-boop-mcp-server
+npm install -g @thesammykis/beep-boop-mcp-server
 ```
 
 ### From Source
@@ -46,12 +46,24 @@ npm start
 
 Add to your MCP client configuration (e.g., Claude Desktop):
 
-#### For NPM Installation
+#### For Global NPM Installation
 ```json
 {
   "mcpServers": {
     "beep-boop-coordination": {
       "command": "beep-boop-mcp-server"
+    }
+  }
+}
+```
+
+#### For NPX (No Installation Required)
+```json
+{
+  "mcpServers": {
+    "beep-boop-coordination": {
+      "command": "npx",
+      "args": ["-y", "@thesammykis/beep-boop-mcp-server"]
     }
   }
 }

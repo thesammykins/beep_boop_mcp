@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "beep-boop-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@thesammykis/beep-boop-mcp-server"
+      ]
+    }
+  }
+}
