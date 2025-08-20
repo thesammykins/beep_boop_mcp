@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.3] - 2025-08-20
+
+- fix: Correct package scope from @thesammykis to @thesammykins
+- Merge branch 'main' with corrected package scope
+
 ## [1.1.2] - 2025-08-20
 
 - fix: Configure npm package for public publishing
