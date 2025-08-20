@@ -1,4 +1,4 @@
-# Beep/Boop MCP Server
+# 🤖👈 Beep/Boop 👉🤖 MCP Server
 
 A Model Context Protocol (MCP) server for coordinating work between multiple AI agents in monorepos and shared codebases using a simple file-based signaling system.
 
