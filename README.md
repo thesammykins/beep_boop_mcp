@@ -281,6 +281,48 @@ Server logs errors to `stderr` to avoid interfering with MCP protocol on `stdout
 
 ## 🧪 Testing
 
+### Ingress Listener (Discord/Slack)
+
+Quick test (Discord provider, placeholder token):
+
+- Do not paste secrets inline; export via your shell or MCP config.
+- Start with Discord first using a placeholder to validate wiring (HTTP starts, Discord login will fail fast with TokenInvalid, which confirms the path):
+
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true \
+BEEP_BOOP_INGRESS_PROVIDER=discord \
+BEEP_BOOP_DISCORD_BOT_TOKEN={{DISCORD_BOT_TOKEN}} \
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN={{INGRESS_TOKEN}} \
+BEEP_BOOP_LOG_LEVEL=debug \
+npm run listen
+```
+
+You should see:
+- Config summary
+- HTTP endpoint online (http://localhost:7077)
+- Discord TokenInvalid (expected when using a placeholder)
+
+HTTP endpoint usage (replace token if configured):
+```bash
+curl -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages
+curl -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages/<MESSAGE_ID>
+curl -X POST -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages/<MESSAGE_ID>/ack
+```
+
+To actually test Discord end-to-end, set a valid BEEP_BOOP_DISCORD_BOT_TOKEN and invite the bot to your server with intents enabled (Guilds, Guild Messages, Message Content). Mention the bot to create a captured message and get an immediate ack reply.
+
+To test Slack, set:
+- BEEP_BOOP_INGRESS_PROVIDER=slack
+- BEEP_BOOP_SLACK_APP_TOKEN=xapp-… (Socket Mode app-level token with connections:write)
+- BEEP_BOOP_SLACK_BOT_TOKEN=xoxb-… (bot token with app_mentions:read, chat:write; add history scopes as needed if you want to capture non-mention messages)
+
+Then run:
+```bash
+npm run listen
+```
+
+See docs/INGRESS.md and docs/SCOPES_INTENTS.md for full setup.
+
 Run the test suite:
 ```bash
 npm test
@@ -296,6 +338,25 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
 ```
 
 ## 🤝 Integration Examples
+
+### MCP tool: update_user
+
+Agents can post follow-up updates back to the original Slack thread or Discord channel for a captured message.
+
+Input fields:
+- messageId: ID of the captured message (from the local inbox)
+- updateContent: message text to send
+
+Example (pseudo):
+```json path=null start=null
+{
+  "tool": "update_user",
+  "params": {
+    "messageId": "2b1b8e02-6c6b-4a3d-9f0f-123456789abc",
+    "updateContent": "I'll start preparing a deployment plan and report back within 10 minutes."
+  }
+}
+```
 
 ### With Task Planners
 ```typescript
