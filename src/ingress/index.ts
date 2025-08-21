@@ -1,7 +1,5 @@
 import { BeepBoopConfig, printConfigSummary } from '../config.js';
 import { InboxStore } from './inbox.js';
-import { createSlackSocketListener } from './slack-listener.js';
-import { createDiscordListener } from './discord-listener.js';
 import { createServer } from 'http';
 import { randomUUID } from 'crypto';
 
@@ -80,9 +78,11 @@ async function main() {
   startHttpServer(config, inbox);
 
   if (config.ingressProvider === 'slack') {
+    const { createSlackSocketListener } = await import('./slack-listener.js');
     const slack = createSlackSocketListener(config, inbox);
     await slack.start();
   } else if (config.ingressProvider === 'discord') {
+    const { createDiscordListener } = await import('./discord-listener.js');
     const discord = createDiscordListener(config, inbox);
     await discord.start();
   }

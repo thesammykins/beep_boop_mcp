@@ -1,10 +1,11 @@
-import { App, LogLevel } from '@slack/bolt';
+import SlackBolt from '@slack/bolt';
 import { WebClient } from '@slack/web-api';
 import { BeepBoopConfig } from '../config.js';
 import { InboxStore, IngressMessage } from './inbox.js';
 import { randomUUID } from 'crypto';
 
 export function createSlackSocketListener(config: BeepBoopConfig, inbox: InboxStore) {
+  const { App, LogLevel } = SlackBolt as any;
   if (!config.slackAppToken || !config.slackBotToken) {
     throw new Error('Slack Socket Mode requires BEEP_BOOP_SLACK_APP_TOKEN and BEEP_BOOP_SLACK_BOT_TOKEN');
   }
