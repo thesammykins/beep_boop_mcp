@@ -92,6 +92,23 @@ async function createServer(): Promise<McpServer> {
     }
   );
 
+  /**
+   * Tool: update_user
+   * Sends a follow-up update back to the platform thread/user tied to a captured message
+   */
+  server.registerTool(
+    'update_user',
+    {
+      title: 'Update User',
+      description: 'Sends a follow-up update back to the platform (Slack/Discord) for a captured message.',
+      inputSchema: (await import('./tools.js')).UpdateUserSchema.shape
+    },
+    async (params) => {
+      const { handleUpdateUser } = await import('./tools.js');
+      return await handleUpdateUser(params);
+    }
+  );
+
   return server;
 }
 
@@ -124,6 +141,7 @@ async function main(): Promise<void> {
     console.error('   • end_work - Complete work atomically');
     console.error('   • check_status - Check current coordination status with stale cleanup');
     console.error('🚀 Server ready for requests...');
+    console.error('   • update_user - Send follow-up updates to Slack/Discord for captured messages');
     
   } catch (error) {
     console.error('❌ Failed to start MCP server:', error);

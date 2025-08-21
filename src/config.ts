@@ -55,6 +55,21 @@ export interface BeepBoopConfig {
   
   // Git integration
   manageGitIgnore: boolean;
+
+  // Ingress listener feature
+  ingressEnabled: boolean;
+  ingressProvider: 'slack' | 'discord' | 'none';
+  ingressHttpEnabled: boolean;
+  ingressHttpPort: number;
+  ingressHttpAuthToken?: string;
+  ingressInboxDir: string;
+
+  // Slack (Socket Mode)
+  slackAppToken?: string; // xapp-... (Socket Mode)
+  slackBotToken?: string; // xoxb-...
+
+  // Discord
+  discordBotToken?: string;
 }
 
 /**
@@ -113,7 +128,22 @@ export function loadConfig(): BeepBoopConfig {
     maxConcurrentOperations: parseInt(process.env.BEEP_BOOP_MAX_CONCURRENT_OPERATIONS || '5', 10),
     
     // Git integration
-    manageGitIgnore: process.env.BEEP_BOOP_MANAGE_GITIGNORE !== 'false' // Default to true
+    manageGitIgnore: process.env.BEEP_BOOP_MANAGE_GITIGNORE !== 'false', // Default to true
+
+    // Ingress listener feature
+    ingressEnabled: process.env.BEEP_BOOP_INGRESS_ENABLED === 'true',
+    ingressProvider: (process.env.BEEP_BOOP_INGRESS_PROVIDER || 'none') as BeepBoopConfig['ingressProvider'],
+    ingressHttpEnabled: process.env.BEEP_BOOP_INGRESS_HTTP_ENABLED !== 'false',
+    ingressHttpPort: parseInt(process.env.BEEP_BOOP_INGRESS_HTTP_PORT || '7077', 10),
+    ingressHttpAuthToken: process.env.BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN,
+    ingressInboxDir: process.env.BEEP_BOOP_INGRESS_INBOX_DIR || './.beep-boop-inbox',
+
+    // Slack
+    slackAppToken: process.env.BEEP_BOOP_SLACK_APP_TOKEN,
+    slackBotToken: process.env.BEEP_BOOP_SLACK_BOT_TOKEN,
+
+    // Discord
+    discordBotToken: process.env.BEEP_BOOP_DISCORD_BOT_TOKEN
   };
   
   // Handle backward compatibility for legacy webhook config
@@ -173,6 +203,15 @@ function validateConfig(config: BeepBoopConfig): void {
   // Validate concurrent operations
   if (config.maxConcurrentOperations < 1 || config.maxConcurrentOperations > 100) {
     throw new Error('BEEP_BOOP_MAX_CONCURRENT_OPERATIONS must be between 1 and 100');
+  }
+
+  // Validate ingress provider selection
+  const validProviders = ['slack', 'discord', 'none'];
+  if (!validProviders.includes(config.ingressProvider)) {
+    throw new Error('BEEP_BOOP_INGRESS_PROVIDER must be one of slack, discord, none');
+  }
+  if (config.ingressEnabled && config.ingressProvider === 'none') {
+    throw new Error('Ingress enabled but no provider selected. Set BEEP_BOOP_INGRESS_PROVIDER=slack or discord');
   }
 }
 
@@ -320,5 +359,12 @@ export function printConfigSummary(config: BeepBoopConfig): void {
       console.error(`   • Timeout: ${config.notificationTimeoutMs}ms`);
     }
     console.error(`   • Git integration: ${config.manageGitIgnore ? 'enabled' : 'disabled'}`);
+    console.error(`   • Ingress: ${config.ingressEnabled ? 'enabled' : 'disabled'} (${config.ingressProvider})`);
+    if (config.ingressEnabled) {
+      console.error(`   • Ingress HTTP: ${config.ingressHttpEnabled ? `enabled on port ${config.ingressHttpPort}` : 'disabled'}`);
+      console.error(`   • Inbox dir: ${config.ingressInboxDir}`);
+      console.error(`   • Slack Socket Mode: ${config.slackAppToken && config.slackBotToken ? 'configured' : 'not configured'}`);
+      console.error(`   • Discord Bot: ${config.discordBotToken ? 'configured' : 'not configured'}`);
+    }
   }
 }

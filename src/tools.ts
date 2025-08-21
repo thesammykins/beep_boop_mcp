@@ -10,7 +10,8 @@ import {
   CreateBeepParams,
   UpdateBoopParams,
   EndWorkParams,
-  CheckStatusParams
+  CheckStatusParams,
+  UpdateUserParams
 } from './types.js';
 import {
   createBeepFile,
@@ -26,6 +27,7 @@ import {
 } from './file-operations.js';
 import { loadConfig } from './config.js';
 import { NotificationManager, NotificationType, createNotificationManager } from './notification-service.js';
+import { InboxStore } from './ingress/inbox.js';
 
 /**
  * Schema for create_beep tool parameters
@@ -62,6 +64,12 @@ export const CheckStatusSchema = z.object({
   autoCleanStale: z.boolean().optional().default(false).describe('Whether to automatically clean up stale boop files (default: false)'),
   newAgentId: z.string().optional().describe('Agent ID to use when claiming after stale cleanup'),
   newWorkDescription: z.string().optional().describe('Work description when claiming after cleanup')
+});
+
+/** Schema for update_user tool parameters */
+export const UpdateUserSchema = z.object({
+  messageId: z.string().describe('ID of the captured message to respond to'),
+  updateContent: z.string().describe('Message content to send as an update')
 });
 
 /**
@@ -650,5 +658,46 @@ function getNextStepsRecommendation(status: any, cleanupPerformed: boolean = fal
       
     default:
       return '• Use check_status again to get current state';
+  }
+}
+
+/**
+ * Tool: update_user
+ * Sends a follow-up update back to the platform thread/user tied to a captured message
+ */
+export async function handleUpdateUser(params: UpdateUserParams): Promise<ToolResponse> {
+  try {
+    const { messageId, updateContent } = params;
+    const config = loadConfig();
+    const inbox = new (await import('./ingress/inbox.js')).InboxStore(config);
+    const msg = await inbox.read(messageId);
+    if (!msg) {
+      return { content: [{ type: 'text', text: `❌ Message ${messageId} not found` }], isError: true };
+    }
+
+    if (msg.platform === 'slack') {
+      if (!config.slackBotToken) {
+        return { content: [{ type: 'text', text: '❌ Slack bot token not configured' }], isError: true };
+      }
+      const { WebClient } = await import('@slack/web-api');
+      const web = new WebClient(config.slackBotToken);
+      const channel = msg.context.channelId as string;
+      const thread_ts = msg.context.threadTs as string | undefined;
+      await web.chat.postMessage({ channel, thread_ts, text: updateContent });
+    } else if (msg.platform === 'discord') {
+      if (!config.discordBotToken) {
+        return { content: [{ type: 'text', text: '❌ Discord bot token not configured' }], isError: true };
+      }
+      const { REST, Routes } = await import('discord.js');
+      const rest = new (REST as any)({ version: '10' }).setToken(config.discordBotToken);
+      const channelId = msg.context.channelId as string;
+      await rest.post((Routes as any).channelMessages(channelId), { body: { content: updateContent, message_reference: { message_id: msg.context.messageId } } });
+    } else {
+      return { content: [{ type: 'text', text: `❌ Unsupported platform: ${(msg as any).platform}` }], isError: true };
+    }
+
+    return { content: [{ type: 'text', text: `✅ Update sent for message ${messageId}` }] };
+  } catch (error) {
+    return { content: [{ type: 'text', text: `❌ Failed to send update: ${error}` }], isError: true };
   }
 }

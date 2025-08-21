@@ -25,6 +25,7 @@
     "build": "tsc && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
+    "listen": "tsx src/ingress/index.ts",
     "prepublishOnly": "npm run build",
     "test": "echo \"No tests specified yet - build verification serves as basic test\" && npm run build",
     "test:webhooks": "npm run build && tsx test-webhooks.ts",
@@ -54,7 +55,10 @@
   "homepage": "https://github.com/thesammykins/beep_boop_mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
+    "@slack/bolt": "^3.18.0",
+    "@slack/web-api": "^7.4.0",
     "@slack/webhook": "^7.0.5",
+    "discord.js": "^14.15.3",
     "discord-webhook-node": "^1.1.8",
     "zod": "^3.25.76"
   },

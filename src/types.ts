@@ -138,3 +138,11 @@ export interface ToolResponse {
   isError?: boolean | undefined;
   _meta?: { [x: string]: unknown } | undefined;
 }
+
+/** Parameters for sending a user update back to chat platforms */
+export interface UpdateUserParams {
+  /** ID of the captured message in the inbox store */
+  messageId: string;
+  /** Message content to send as an update */
+  updateContent: string;
+}
