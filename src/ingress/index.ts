@@ -2,12 +2,12 @@ import { BeepBoopConfig, printConfigSummary } from '../config.js';
 import { InboxStore } from './inbox.js';
 import { createSlackSocketListener } from './slack-listener.js';
 import { createDiscordListener } from './discord-listener.js';
-import http from 'http';
+import { createServer } from 'http';
 import { randomUUID } from 'crypto';
 
 function startHttpServer(config: BeepBoopConfig, inbox: InboxStore) {
   if (!config.ingressHttpEnabled) return;
-  const server = http.createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     try {
       // Basic bearer token auth if configured
       if (config.ingressHttpAuthToken) {
