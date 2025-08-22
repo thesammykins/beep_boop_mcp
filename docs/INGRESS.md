@@ -14,7 +14,7 @@ Set these environment variables or define them in your MCP client config (prefer
 Core:
 - BEEP_BOOP_INGRESS_ENABLED=true
 - BEEP_BOOP_INGRESS_PROVIDER=slack | discord
-- BEEP_BOOP_INGRESS_INBOX_DIR=./.beep-boop-inbox
+- BEEP_BOOP_INGRESS_INBOX_DIR=$HOME/.beep-boop-inbox (default)
 - BEEP_BOOP_INGRESS_HTTP_ENABLED=true
 - BEEP_BOOP_INGRESS_HTTP_PORT=7077
 - BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN=<optional bearer token>
@@ -107,6 +107,10 @@ Development:
 The listener will:
 - Start Slack Socket Mode or Discord gateway (based on provider)
 - Start local HTTP endpoint: http://localhost:${BEEP_BOOP_INGRESS_HTTP_PORT}
+
+Auto-start with MCP server:
+- By default, when you start the MCP server, the ingress sidecar is started automatically.
+- Control with `BEEP_BOOP_START_INGRESS_WITH_SERVER` (set to "false" to disable).
 
 ## HTTP API
 

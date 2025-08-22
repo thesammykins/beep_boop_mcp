@@ -10,7 +10,7 @@ export interface IngressMessage {
   text: string;
   raw: any;
   authoredBy: { id: string; username?: string };
-  context: { channelId: string; threadTs?: string; guildId?: string; messageId?: string };
+  context: { channelId: string; threadTs?: string; guildId?: string; messageId?: string; threadId?: string };
   createdAt: string; // ISO
 }
 
@@ -51,6 +51,21 @@ export class InboxStore {
     try {
       await this.ensureDirs();
       await fs.rename(src, dst);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+  async updateThreadId(id: string, threadId: string): Promise<boolean> {
+    const file = join(this.config.ingressInboxDir, `${id}.json`);
+    try {
+      const data = await fs.readFile(file, 'utf8');
+      const msg = JSON.parse(data);
+      msg.context = msg.context || {};
+      msg.context.threadId = threadId;
+      await fs.writeFile(file, JSON.stringify(msg, null, 2), 'utf8');
       return true;
     } catch {
       return false;

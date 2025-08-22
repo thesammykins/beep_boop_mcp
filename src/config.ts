@@ -2,6 +2,9 @@
  * Configuration management for the beep/boop coordination system
  */
 
+import os from 'os';
+import path from 'path';
+
 export interface BeepBoopConfig {
   // Core settings
   defaultMaxAgeHours: number;
@@ -136,7 +139,7 @@ export function loadConfig(): BeepBoopConfig {
     ingressHttpEnabled: process.env.BEEP_BOOP_INGRESS_HTTP_ENABLED !== 'false',
     ingressHttpPort: parseInt(process.env.BEEP_BOOP_INGRESS_HTTP_PORT || '7077', 10),
     ingressHttpAuthToken: process.env.BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN,
-    ingressInboxDir: process.env.BEEP_BOOP_INGRESS_INBOX_DIR || './.beep-boop-inbox',
+    ingressInboxDir: process.env.BEEP_BOOP_INGRESS_INBOX_DIR || path.join(os.homedir(), '.beep-boop-inbox'),
 
     // Slack
     slackAppToken: process.env.BEEP_BOOP_SLACK_APP_TOKEN,

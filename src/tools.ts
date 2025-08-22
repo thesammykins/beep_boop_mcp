@@ -690,8 +690,13 @@ export async function handleUpdateUser(params: UpdateUserParams): Promise<ToolRe
       }
       const { REST, Routes } = await import('discord.js');
       const rest = new (REST as any)({ version: '10' }).setToken(config.discordBotToken);
-      const channelId = msg.context.channelId as string;
-      await rest.post((Routes as any).channelMessages(channelId), { body: { content: updateContent, message_reference: { message_id: msg.context.messageId } } });
+      const threadId = (msg.context as any).threadId as string | undefined;
+      if (threadId) {
+        await rest.post((Routes as any).channelMessages(threadId), { body: { content: updateContent } });
+      } else {
+        const channelId = msg.context.channelId as string;
+        await rest.post((Routes as any).channelMessages(channelId), { body: { content: updateContent, message_reference: { message_id: (msg.context as any).messageId } } });
+      }
     } else {
       return { content: [{ type: 'text', text: `❌ Unsupported platform: ${(msg as any).platform}` }], isError: true };
     }

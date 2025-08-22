@@ -20,7 +20,7 @@ export function createSlackSocketListener(config: BeepBoopConfig, inbox: InboxSt
   const web = new WebClient(config.slackBotToken);
 
   // Mention-based capture
-  app.event('app_mention', async ({ event }) => {
+  app.event('app_mention', async ({ event }: { event: any }) => {
     const text: string = (event as any).text || '';
     const msg: IngressMessage = {
       id: randomUUID(),
@@ -46,7 +46,7 @@ export function createSlackSocketListener(config: BeepBoopConfig, inbox: InboxSt
   });
 
   // Optional: capture plain messages that mention the bot via <@botId> in channels
-  app.message(/<@\w+>\s+(.+)/, async ({ message, context }) => {
+  app.message(/<@\\w+>\\s+(.+)/, async ({ message, context }: { message: any; context: any }) => {
     // Bolt already routes app_mention, but some workspaces rely on message regex
     const text = (message as any).text || '';
     if (!text.includes(`<@${context.botUserId}>`)) return;

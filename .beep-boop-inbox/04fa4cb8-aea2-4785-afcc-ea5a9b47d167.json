@@ -1,0 +1,19 @@
+{
+  "id": "04fa4cb8-aea2-4785-afcc-ea5a9b47d167",
+  "platform": "discord",
+  "text": "i'm testing response, please sent back an ack",
+  "raw": {
+    "id": "1408242832317353994",
+    "content": "<@1408227575465246893> i'm testing response, please sent back an ack"
+  },
+  "authoredBy": {
+    "id": "274330723031449610",
+    "username": "thesammykins"
+  },
+  "context": {
+    "channelId": "1408235462769901598",
+    "guildId": "688546686930518167",
+    "messageId": "1408242832317353994"
+  },
+  "createdAt": "2025-08-22T00:14:15.111Z"
+}

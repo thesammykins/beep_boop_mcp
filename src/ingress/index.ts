@@ -65,13 +65,13 @@ function startHttpServer(config: BeepBoopConfig, inbox: InboxStore) {
   });
 }
 
-async function main() {
+export async function startIngress() {
   const config = (await import('../config.js')).loadConfig();
   if (config.logLevel === 'debug') printConfigSummary(config);
 
   if (!config.ingressEnabled || config.ingressProvider === 'none') {
     console.error('Ingress is disabled. Set BEEP_BOOP_INGRESS_ENABLED=true and provider.');
-    process.exit(0);
+    return;
   }
 
   const inbox = new InboxStore(config);
@@ -90,6 +90,6 @@ async function main() {
 
 // Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((e) => { console.error('Ingress fatal error', e); process.exit(1); });
+  startIngress().catch((e) => { console.error('Ingress fatal error', e); process.exit(1); });
 }
 

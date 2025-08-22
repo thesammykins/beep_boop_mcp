@@ -22,6 +22,26 @@ export function createDiscordListener(config: BeepBoopConfig, inbox: InboxStore)
   client.on(Events.MessageCreate, async (message) => {
     try {
       if (message.author.bot) return;
+
+      // If a conversation thread started by our bot, capture replies without requiring mention
+      const anyChan: any = message.channel as any;
+      if (typeof anyChan.isThread === 'function' && anyChan.isThread() && anyChan.ownerId === client.user!.id) {
+        const threadChannel: any = message.channel;
+        const parentId = threadChannel.parentId;
+        const msg: IngressMessage = {
+          id: randomUUID(),
+          platform: 'discord',
+          text: (message.content || '').trim(),
+          raw: { id: message.id, content: message.content },
+          authoredBy: { id: message.author.id, username: message.author.username },
+          context: { channelId: parentId || message.channelId, guildId: message.guildId || undefined, messageId: message.id, threadId: threadChannel.id },
+          createdAt: new Date(message.createdTimestamp).toISOString()
+        };
+        await inbox.put(msg);
+        return;
+      }
+
+      // Otherwise require a mention to initiate a thread
       if (!message.mentions.has(client.user!)) return;
 
       const cleaned = message.content.replace(`<@${client.user!.id}>`, '').trim();
@@ -37,8 +57,26 @@ export function createDiscordListener(config: BeepBoopConfig, inbox: InboxStore)
 
       await inbox.put(msg);
 
-      // Ack reply
-      await message.reply(`✅ Got it! Queued your request (id: ${msg.id}). I will update you with next steps.`);
+      // Start a thread for back-and-forth
+      let thread: any;
+      try {
+        const name = cleaned.slice(0, 80) || `Task ${msg.id}`;
+        thread = await (message as any).startThread({ name, autoArchiveDuration: 60, reason: 'Beep/Boop conversation' });
+        await inbox.updateThreadId(msg.id, thread.id);
+      } catch (e) {
+        console.error('Failed to start Discord thread', e);
+      }
+
+      // Ack in thread if created, else reply to original message
+      try {
+        if (thread) {
+          await thread.send(`✅ Got it! Queued your request (id: ${msg.id}). I will update you with next steps.`);
+        } else {
+          await message.reply(`✅ Got it! Queued your request (id: ${msg.id}). I will update you with next steps.`);
+        }
+      } catch (e) {
+        console.error('Discord ack failed', e);
+      }
     } catch (e) {
       console.error('Discord message handling failed', e);
     }

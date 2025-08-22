@@ -137,6 +137,19 @@ await mcpClient.callTool('end_work', {
 - If you find another agent's stale `boop` file, alert the user
 - For `INVALID_STATE`, recommend manual inspection of both files
 
+### Interactive steps and user threads (Discord)
+When an agent needs user input to proceed:
+1. Halt execution at a well-defined checkpoint (after persisting current state).
+2. Start a Discord thread from the triggering message (the listener will automatically do this for new mentions), or explicitly open one if needed.
+3. Post a prompt in the thread and tag the appropriate user ID(s) for action.
+4. Wait for a reply in the thread. The listener captures thread messages owned by the bot, so the user does not need to mention the bot again.
+5. Read the new message from the inbox (HTTP endpoint or MCP tool) and continue the workflow.
+
+Guidelines:
+- Use concise prompts with clear next actions and expected format.
+- Keep one task per thread; name threads descriptively (e.g., “Task: Update CI secrets”).
+- Close/ack the thread when the task is complete.
+
 ## Integration Examples
 
 ### With Task Planning

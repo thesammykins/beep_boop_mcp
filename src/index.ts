@@ -142,6 +142,19 @@ async function main(): Promise<void> {
     console.error('   • check_status - Check current coordination status with stale cleanup');
     console.error('🚀 Server ready for requests...');
     console.error('   • update_user - Send follow-up updates to Slack/Discord for captured messages');
+
+    // Optionally auto-start ingress sidecar with the MCP server
+    const startWithServer = process.env.BEEP_BOOP_START_INGRESS_WITH_SERVER !== 'false';
+    if (startWithServer) {
+      try {
+        const { startIngress } = await import('./ingress/index.js');
+        // Fire-and-forget; ingress manages its own lifecycle
+        startIngress().catch((e: any) => console.error('Ingress start failed:', e));
+        console.error('🔄 Ingress sidecar startup triggered');
+      } catch (e) {
+        console.error('Failed to start ingress sidecar:', e);
+      }
+    }
     
   } catch (error) {
     console.error('❌ Failed to start MCP server:', error);

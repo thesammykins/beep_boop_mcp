@@ -39,6 +39,8 @@ References (fetch latest via context7 when needed):
 Bot permissions:
 - Send Messages (to reply/ack)
 - Read Message History (for context if needed)
+- Create Public Threads
+- Send Messages in Threads
 
 Notes:
 - The listener checks if the bot is mentioned and replies with an ack.
