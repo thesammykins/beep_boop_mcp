@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.3.0] - 2025-08-22
+
+### Added
+- **Comprehensive Inbox Cleanup System** - Automatic cleanup of old inbox messages to prevent infinite file accumulation
+- Six new configuration options for inbox cleanup behavior:
+  - `BEEP_BOOP_INBOX_CLEANUP_ENABLED` (default: true) - Enable/disable automatic cleanup
+  - `BEEP_BOOP_INBOX_PROCESSED_RETENTION_DAYS` (default: 7) - How long to keep processed messages
+  - `BEEP_BOOP_INBOX_UNPROCESSED_RETENTION_DAYS` (default: 30) - How long to keep unprocessed messages
+  - `BEEP_BOOP_INBOX_MAX_FILES_PER_DIR` (default: 0) - Optional file count limit per directory
+  - `BEEP_BOOP_INBOX_CLEANUP_ON_STARTUP` (default: true) - Run cleanup when server starts
+  - `BEEP_BOOP_INBOX_CLEANUP_INTERVAL_HOURS` (default: 24) - How often to run automatic cleanup
+- **InboxStore Cleanup Methods**:
+  - `cleanup(force)` - Manual cleanup with detailed statistics
+  - `autoCleanup()` - Non-blocking periodic cleanup
+  - `getStats()` - Inbox statistics including cleanup information
+- **Enhanced MCP Tools** - Inbox statistics and auto-cleanup integration in:
+  - `check_listener_status` - Now shows inbox stats and triggers cleanup
+  - `update_user` - Triggers auto-cleanup when accessing messages
+  - `initiate_conversation` - Triggers auto-cleanup when storing messages
+
+### Changed
+- **Performance Improvements** - All cleanup operations are non-blocking and don't impact tool performance
+- **Monitoring Enhancements** - Real-time inbox file counts and cleanup statistics
+
+### Technical Details
+- Time-based cleanup using file modification timestamps
+- Count-based cleanup with oldest-first deletion strategy
+- Atomic file operations with comprehensive error handling
+- Smart interval-based execution prevents unnecessary cleanup operations
+- Debug logging for troubleshooting and monitoring
+
 ## [1.2.1] - 2025-08-22
 
 - Update CHANGELOG.md
