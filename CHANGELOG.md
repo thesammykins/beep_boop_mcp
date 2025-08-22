@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0] - 2025-08-22
+
+- feat(ingress): add Slack Socket Mode and Discord gateway listeners, file-based inbox, local HTTP endpoint, and update_user MCP tool
+- chore(ingress): fix http ESM import and add src/.gitignore entries
+- fix(ingress): lazy-load provider listeners and adjust Slack Bolt import for ESM interop
+- docs(ingress): add INGRESS quickstart, SCOPES_INTENTS, and README updates for Discord-first test and update_user tool
+- docs(ingress): add step-by-step token acquisition for Slack Socket Mode and Discord, plus HTTP bearer token guidance
+- feat(ingress): default inbox to /Users/samanthamyers, create Discord threads and capture replies, post updates into threads, auto-start ingress with MCP server; docs updated
+- working mcp conversation tool
+- feat: comprehensive documentation validation and update
+- feat: add comprehensive ingress/listener system for Discord and Slack integration
+- Merge pull request #1 from thesammykins/feature/ingress-listener
+
 ## [1.1.3] - 2025-08-20
 
 - fix: Correct package scope from @thesammykis to @thesammykins
