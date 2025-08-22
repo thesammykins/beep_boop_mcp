@@ -194,6 +194,44 @@ Posts follow-up messages to captured Discord/Slack threads for bidirectional com
 - Error notifications and recovery updates
 - Task completion confirmations
 
+#### `initiate_conversation`
+Proactively starts new conversations on Discord or Slack, enabling agents to notify users about work status, errors, or completion.
+
+**Parameters:**
+- `platform` ("discord" | "slack"): Target platform for the conversation
+- `channelId` (string, optional): Channel ID to send message to (uses default if omitted)
+- `content` (string): Initial message content to send
+- `agentId` (string, optional): Agent ID for attribution
+
+**Returns:**
+- Conversation details including message ID for follow-up updates
+- User response details if a reply is received within timeout period
+
+**Use Cases:**
+- Notify users about completed background work
+- Alert about system issues or failures discovered during routine checks
+- Report completion of scheduled tasks or maintenance
+- Send proactive status updates for long-running processes
+- Alert users when manual intervention is needed
+
+#### `check_listener_status`
+Monitors the health and connectivity of the HTTP listener service used for centralized tool delegation.
+
+**Parameters:**
+- `includeConfig` (boolean, optional): Whether to include detailed configuration info
+
+**Returns:**
+- Configuration overview (enabled/disabled status, URLs, timeouts)
+- Connectivity test results (health check, MCP endpoint verification)  
+- Optional detailed configuration when requested
+
+**Use Cases:**
+- Verify ingress service connectivity before delegation
+- Troubleshoot communication issues with centralized listener
+- Debug listener configuration problems
+- Health checks for distributed agent systems
+- Validate webhook and bot token configuration
+
 ## 📡 Ingress/Listener System
 
 The Beep/Boop MCP Server includes a powerful ingress system that captures messages from Discord and Slack, enabling bidirectional communication between AI agents and users.

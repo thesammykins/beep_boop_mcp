@@ -127,6 +127,29 @@ Parameters: {
 
 **Response**: Returns a message ID that can be used with `update_user` for follow-up messages in the same conversation thread.
 
+### 7. Listener Status Monitoring (Optional)
+
+For checking the status and connectivity of the HTTP listener service:
+
+```
+Use MCP tool: check_listener_status
+Parameters: {
+  "includeConfig": false // optional - whether to include detailed configuration
+}
+```
+
+**Use Cases:**
+- Verify ingress service connectivity before delegation
+- Troubleshoot communication issues with centralized listener
+- Debug listener configuration problems
+- Health checks for distributed agent systems
+- Validate webhook and bot token configuration
+
+**Response**: Returns detailed status including:
+- Configuration overview (enabled/disabled status, URLs, timeouts)
+- Connectivity test results (health check, MCP endpoint verification)
+- Optional detailed configuration when `includeConfig: true`
+
 ## Example Workflows
 
 ### Basic Coordination Workflow

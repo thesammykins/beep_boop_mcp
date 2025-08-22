@@ -119,8 +119,52 @@ Auto-start with MCP server:
 - By default, when you start the MCP server, the ingress sidecar is started automatically.
 - Control with `BEEP_BOOP_START_INGRESS_WITH_SERVER` (set to "false" to disable).
 
+## Centralized Listener Delegation
+
+The system supports a **centralized listener mode** where multiple MCP servers can delegate certain tool operations to a single HTTP listener service. This enables:
+
+- **Shared Discord/Slack connections** across multiple agents
+- **Centralized message handling** and response coordination
+- **Reduced resource usage** (single bot connection per platform)
+- **Better scalability** for multi-agent systems
+
+### Configuration for Delegation
+
+Add these environment variables to enable delegation:
+
+```bash
+# Enable centralized listener delegation
+BEEP_BOOP_LISTENER_ENABLED=true
+BEEP_BOOP_LISTENER_BASE_URL=http://localhost:7077
+BEEP_BOOP_LISTENER_AUTH_TOKEN=your-shared-auth-token
+
+# Optional: Configure timeouts and concurrency
+BEEP_BOOP_LISTENER_TIMEOUT_BASE_MS=10000
+BEEP_BOOP_LISTENER_TIMEOUT_MAX_MS=60000
+BEEP_BOOP_MAX_CONCURRENT_LISTENER_REQUESTS=25
+```
+
+### How Delegation Works
+
+1. **MCP Tool Called**: Agent calls `update_user`, `initiate_conversation`, or `check_status`
+2. **Delegation Check**: If `BEEP_BOOP_LISTENER_ENABLED=true`, delegate to HTTP listener
+3. **HTTP Request**: MCP server sends POST request to listener's `/mcp/` endpoints
+4. **Processing**: Listener processes request using its Discord/Slack connections
+5. **Response**: Listener returns results synchronously to MCP server
+6. **Fallback**: If delegation fails, MCP server attempts local processing
+
+### Adaptive Timeouts
+
+The HTTP client uses adaptive timeouts based on request payload size:
+- **Base timeout**: `BEEP_BOOP_LISTENER_TIMEOUT_BASE_MS` (default: 10 seconds)
+- **Per-character timeout**: `BEEP_BOOP_LISTENER_TIMEOUT_PER_CHAR_MS` (default: 5ms per character)
+- **Maximum timeout**: `BEEP_BOOP_LISTENER_TIMEOUT_MAX_MS` (default: 60 seconds)
+
+This ensures small requests complete quickly while allowing larger requests more time.
+
 ## HTTP API
 
+### Standard Ingress Endpoints
 - GET /messages
   - Returns: { ids: string[] }
 - GET /messages/:id
@@ -128,18 +172,73 @@ Auto-start with MCP server:
 - POST /messages/:id/ack
   - Moves the message to the processed folder and returns { ok: boolean }
 
-If BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN is set, include header:
+### MCP Delegation Endpoints
+These endpoints allow MCP servers to delegate tool calls to the centralized listener:
+
+- POST /mcp/check_status
+  - Input: { directory, maxAgeHours?, autoCleanStale?, newAgentId?, newWorkDescription? }
+  - Returns: Detailed status check with optional stale cleanup
+- POST /mcp/update_user
+  - Input: { messageId, updateContent }
+  - Returns: Success confirmation for message posting
+- POST /mcp/initiate_conversation
+  - Input: { platform, channelId?, content, agentId? }
+  - Returns: Conversation details with potential user response
+
+### Authentication
+If BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN is set, include header for all requests:
 - Authorization: Bearer <token>
 
-## MCP tool: update_user
+### Request/Response Format
+All POST requests expect JSON body with optional `requestId` field for tracing:
+```json
+{
+  "directory": "./src/components",
+  "requestId": "uuid-generated-by-client"
+}
+```
 
-Use this to post follow-up updates back to the original platform/thread.
+Responses include either:
+- Success: `{ text: "response message", meta?: { ... } }`
+- Error: `{ error: "error description" }`
 
-When BEEP_BOOP_LISTENER_ENABLED=true, update_user is delegated to the central HTTP listener and the MCP server waits synchronously for the listener response before returning. Otherwise it falls back to posting directly to Slack/Discord.
+## MCP tools: update_user and initiate_conversation
 
-Input:
+### update_user
+Post follow-up updates back to the original platform/thread.
+
+**Delegation Behavior:**
+- When `BEEP_BOOP_LISTENER_ENABLED=true`, this tool delegates to the central HTTP listener and waits synchronously for the response.
+- When listener delegation is disabled, falls back to direct platform posting.
+
+**Input:**
 - messageId (string) – ID returned by the ingress capture
 - updateContent (string) – the message text to send
+
+### initiate_conversation
+Proactively start new conversations on Discord or Slack.
+
+**Delegation Behavior:**
+- When `BEEP_BOOP_LISTENER_ENABLED=true`, this tool delegates to the central HTTP listener for better coordination.
+- Automatically creates Discord threads for interactive conversations.
+- Waits for user responses and returns conversation details.
+
+**Input:**
+- platform ("discord" | "slack") – Target platform
+- channelId (string, optional) – Channel ID (uses default if omitted)
+- content (string) – Initial message content
+- agentId (string, optional) – Agent ID for attribution
+
+### check_listener_status
+Monitor the health and connectivity of the centralized HTTP listener.
+
+**Input:**
+- includeConfig (boolean, optional) – Whether to include detailed configuration info
+
+**Output:**
+- Configuration overview (enabled/disabled, URLs, timeouts)
+- Connectivity test results (health check, MCP endpoint verification)
+- Detailed configuration when requested
 
 ## Slack/Discord setup notes
 

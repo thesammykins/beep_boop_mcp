@@ -76,7 +76,7 @@ npm run listen
 
 ### MCP Server Pattern
 - **Entry Point**: `src/index.ts` - Sets up MCP server with StdioServerTransport
-- **Tool Registration**: Four coordination tools registered via `McpServer.registerTool()`
+- **Tool Registration**: Seven coordination tools registered via `McpServer.registerTool()`
 - **Transport**: Uses stdio for MCP protocol communication (stdout/stdin)
 - **Logging**: stderr only (to avoid interfering with MCP protocol)
 
@@ -172,6 +172,20 @@ Every agent MUST follow this pattern:
 - **Ingress Integration**: Posts follow-up messages to captured Discord/Slack threads
 - **Required**: `messageId` from captured message, `updateContent` text to send
 - **Use Case**: Agent responses and status updates back to original communication channel
+- **Delegation**: When `BEEP_BOOP_LISTENER_ENABLED=true`, delegates to centralized listener
+
+### `initiate_conversation(platform, channelId?, content, agentId?)`
+- **Proactive Communication**: Start new conversations on Discord/Slack
+- **Required**: `platform` ("discord" | "slack"), `content` message text
+- **Optional**: `channelId` (uses default if omitted), `agentId` for attribution
+- **Features**: Auto-creates Discord threads, waits for user responses
+- **Delegation**: When `BEEP_BOOP_LISTENER_ENABLED=true`, delegates to centralized listener
+
+### `check_listener_status(includeConfig?)`
+- **Monitoring**: Check health and connectivity of HTTP listener service
+- **Optional**: `includeConfig` to include detailed configuration
+- **Returns**: Configuration overview, connectivity tests, health status
+- **Use Case**: Troubleshoot delegation issues and validate listener setup
 
 ## Ingress/Listener System
 
