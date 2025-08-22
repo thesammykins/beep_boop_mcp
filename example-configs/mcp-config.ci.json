@@ -20,7 +20,23 @@
         "BEEP_BOOP_CI_MODE": "true",
         "BEEP_BOOP_FAIL_ON_STALE": "false",
         "BEEP_BOOP_MAX_CONCURRENT_OPERATIONS": "10",
-        "BEEP_BOOP_MANAGE_GITIGNORE": "true"
+        "BEEP_BOOP_MANAGE_GITIGNORE": "true",
+        
+        "_COMMENT_INGRESS": "=== INGRESS/LISTENER SYSTEM (Disabled in CI) ===",
+        "BEEP_BOOP_INGRESS_ENABLED": "false",
+        "BEEP_BOOP_INGRESS_PROVIDER": "discord",
+        "BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN": "",
+        "BEEP_BOOP_DISCORD_BOT_TOKEN": "",
+        "BEEP_BOOP_SLACK_APP_TOKEN": "",
+        "BEEP_BOOP_SLACK_BOT_TOKEN": "",
+        
+        "_COMMENT_NOTIFICATIONS": "=== WEBHOOK NOTIFICATIONS (Minimal in CI) ===",
+        "BEEP_BOOP_ENABLE_NOTIFICATIONS": "false",
+        "BEEP_BOOP_NOTIFICATION_SERVICE": "discord",
+        "BEEP_BOOP_DISCORD_WEBHOOK_URL": "",
+        "BEEP_BOOP_SLACK_WEBHOOK_URL": "",
+        "BEEP_BOOP_NOTIFICATION_RETRY_ATTEMPTS": "1",
+        "BEEP_BOOP_NOTIFICATION_TIMEOUT_MS": "2000"
       }
     }
   }

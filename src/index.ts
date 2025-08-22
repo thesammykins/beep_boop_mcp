@@ -92,6 +92,57 @@ async function createServer(): Promise<McpServer> {
     }
   );
 
+  /**
+   * Tool: update_user
+   * Sends a follow-up update back to the platform thread/user tied to a captured message
+   */
+  server.registerTool(
+    'update_user',
+    {
+      title: 'Update User',
+      description: 'Sends a follow-up update back to the platform (Slack/Discord) for a captured message.',
+      inputSchema: (await import('./tools.js')).UpdateUserSchema.shape
+    },
+    async (params) => {
+      const { handleUpdateUser } = await import('./tools.js');
+      return await handleUpdateUser(params);
+    }
+  );
+
+  /**
+   * Tool: initiate_conversation
+   * Proactively starts a new conversation on Discord or Slack
+   */
+  server.registerTool(
+    'initiate_conversation',
+    {
+      title: 'Initiate Conversation',
+      description: 'Proactively starts a new conversation on Discord or Slack. For Discord, creates a thread automatically.',
+      inputSchema: (await import('./tools.js')).InitiateConversationSchema.shape
+    },
+    async (params) => {
+      const { handleInitiateConversation } = await import('./tools.js');
+      return await handleInitiateConversation(params);
+    }
+  );
+
+  /**
+   * Tool: check_listener_status
+   * Checks the status and connectivity of the HTTP listener service
+   */
+  server.registerTool(
+    'check_listener_status',
+    {
+      title: 'Check Listener Status',
+      description: 'Checks the status and connectivity of the HTTP listener service used for tool delegation.',
+      inputSchema: (await import('./tools.js')).CheckListenerStatusSchema.shape
+    },
+    async (params) => {
+      const { handleCheckListenerStatus } = await import('./tools.js');
+      return await handleCheckListenerStatus(params);
+    }
+  );
+
   return server;
 }
 
@@ -118,12 +169,28 @@ async function main(): Promise<void> {
     
     // Log to stderr so it doesn't interfere with MCP protocol on stdout
     console.error('🔗 Beep/Boop MCP Server started and connected');
-    console.error('📋 Available tools:');
+    console.error('📁 Available tools:');
     console.error('   • create_beep - Create beep file to signal work completion');
     console.error('   • update_boop - Claim directory for work in progress');
     console.error('   • end_work - Complete work atomically');
     console.error('   • check_status - Check current coordination status with stale cleanup');
+    console.error('   • update_user - Send follow-up updates to Slack/Discord for captured messages');
+    console.error('   • initiate_conversation - Proactively start new conversations on Discord/Slack');
+    console.error('   • check_listener_status - Check HTTP listener service status and connectivity');
     console.error('🚀 Server ready for requests...');
+
+    // Optionally auto-start ingress sidecar with the MCP server
+    const startWithServer = process.env.BEEP_BOOP_START_INGRESS_WITH_SERVER !== 'false';
+    if (startWithServer) {
+      try {
+        const { startIngress } = await import('./ingress/index.js');
+        // Fire-and-forget; ingress manages its own lifecycle
+        startIngress().catch((e: any) => console.error('Ingress start failed:', e));
+        console.error('🔄 Ingress sidecar startup triggered');
+      } catch (e) {
+        console.error('Failed to start ingress sidecar:', e);
+      }
+    }
     
   } catch (error) {
     console.error('❌ Failed to start MCP server:', error);

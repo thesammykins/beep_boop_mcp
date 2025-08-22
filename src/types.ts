@@ -138,3 +138,23 @@ export interface ToolResponse {
   isError?: boolean | undefined;
   _meta?: { [x: string]: unknown } | undefined;
 }
+
+/** Parameters for sending a user update back to chat platforms */
+export interface UpdateUserParams {
+  /** ID of the captured message in the inbox store */
+  messageId: string;
+  /** Message content to send as an update */
+  updateContent: string;
+}
+
+/** Parameters for initiating a new conversation proactively */
+export interface InitiateConversationParams {
+  /** Platform to send message to ('slack' or 'discord') */
+  platform: 'slack' | 'discord';
+  /** Channel ID to send message to (optional - uses default if not specified) */
+  channelId?: string;
+  /** Initial message content to send */
+  content: string;
+  /** Optional agent ID for attribution */
+  agentId?: string;
+}

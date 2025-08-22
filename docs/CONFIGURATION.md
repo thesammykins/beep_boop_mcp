@@ -60,7 +60,12 @@ cp mcp-config.enterprise.json mcp-config.json
 |----------|---------|-------------|
 | `BEEP_BOOP_ENABLE_METRICS` | `false` | Enable metrics collection |
 | `BEEP_BOOP_ENABLE_NOTIFICATIONS` | `false` | Enable webhook notifications |
-| `BEEP_BOOP_NOTIFICATION_WEBHOOK` | `` | Webhook URL for notifications |
+| `BEEP_BOOP_NOTIFICATION_WEBHOOK` | `` | Webhook URL for notifications (legacy - see webhook-specific vars) |
+| `BEEP_BOOP_NOTIFICATION_SERVICE` | `both` | Notification target: `discord`, `slack`, or `both` |
+| `BEEP_BOOP_DISCORD_WEBHOOK_URL` | `` | Discord-specific webhook URL |
+| `BEEP_BOOP_SLACK_WEBHOOK_URL` | `` | Slack-specific webhook URL |
+| `BEEP_BOOP_NOTIFICATION_RETRY_ATTEMPTS` | `3` | Number of retry attempts for failed notifications |
+| `BEEP_BOOP_NOTIFICATION_TIMEOUT_MS` | `5000` | Timeout for notification requests in milliseconds |
 
 ### Audit and Compliance
 
@@ -94,6 +99,64 @@ cp mcp-config.enterprise.json mcp-config.json
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BEEP_BOOP_MANAGE_GITIGNORE` | `true` | Automatically add beep/boop files to .gitignore |
+
+### Ingress/Listener System
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_INGRESS_ENABLED` | `false` | Enable ingress message capture from Discord/Slack |
+| `BEEP_BOOP_INGRESS_PROVIDER` | `none` | Platform for message capture: `discord`, `slack`, or `none` |
+| `BEEP_BOOP_INGRESS_HTTP_ENABLED` | `true` | Enable HTTP API for captured messages |
+| `BEEP_BOOP_INGRESS_HTTP_PORT` | `7077` | Port for ingress HTTP server |
+| `BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN` | `` | Bearer token for securing HTTP endpoints |
+| `BEEP_BOOP_INGRESS_INBOX_DIR` | `~/.beep-boop-inbox` | Directory for storing captured messages |
+
+### Central Listener Delegation
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_LISTENER_ENABLED` | `false` | Enable HTTP delegation to centralized listener |
+| `BEEP_BOOP_LISTENER_BASE_URL` | `http://localhost:7077` | Base URL of the HTTP listener service |
+| `BEEP_BOOP_LISTENER_AUTH_TOKEN` | `` | Bearer token for listener requests (auto-inherits from ingress if empty) |
+| `BEEP_BOOP_LISTENER_TIMEOUT_BASE_MS` | `10000` | Base timeout for listener requests |
+| `BEEP_BOOP_LISTENER_TIMEOUT_PER_CHAR_MS` | `5` | Additional timeout per character in request payload |
+| `BEEP_BOOP_LISTENER_TIMEOUT_MAX_MS` | `60000` | Maximum timeout cap for listener requests |
+| `BEEP_BOOP_MAX_CONCURRENT_LISTENER_REQUESTS` | `25` | Maximum concurrent requests to listener |
+
+### Discord Integration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_DISCORD_BOT_TOKEN` | `` | Discord bot token for message capture and responses |
+| `BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID` | `` | Default channel for proactive agent messaging |
+
+### Slack Integration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_SLACK_APP_TOKEN` | `` | Slack app-level token (xapp-...) for Socket Mode |
+| `BEEP_BOOP_SLACK_BOT_TOKEN` | `` | Slack bot token (xoxb-...) for message sending |
+
+### Conversation Flow Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES` | `5` | How long to wait for user responses in initiated conversations |
+| `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS` | `2000` | How often to check for user responses (milliseconds) |
+
+### Discord API Reliability Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS` | `3` | Number of retry attempts for Discord API calls |
+| `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS` | `1000` | Base delay between retries (exponential backoff) |
+| `BEEP_BOOP_DISCORD_API_TIMEOUT_MS` | `30000` | Timeout for individual Discord API calls |
+
+### Automatic Startup Control
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_START_INGRESS_WITH_SERVER` | `true` | Auto-start ingress sidecar with MCP server |
 
 ## 🏗️ Configuration Profiles
 

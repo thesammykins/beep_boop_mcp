@@ -1,0 +1,16 @@
+{
+  "id": "demo-message-003",
+  "platform": "discord",
+  "content": "approve - that looks perfect! Please proceed with the documentation updates. Make sure the quick start guide includes installation steps too.",
+  "author": "developer-user",
+  "channel": {
+    "id": "123456789",
+    "name": "development"
+  },
+  "timestamp": "2024-08-22T02:27:00.000Z",
+  "replyContext": {
+    "channelId": "123456789",
+    "messageId": "987654323",
+    "threadId": "thread-123"
+  }
+}

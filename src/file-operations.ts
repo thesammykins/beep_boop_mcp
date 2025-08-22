@@ -505,9 +505,10 @@ export async function ensureGitIgnoreEntries(
     const lines = gitignoreContent.split('\n');
     const hasBeepEntry = lines.some(line => line.trim() === BEEP_FILE);
     const hasBoopEntry = lines.some(line => line.trim() === BOOP_FILE);
+    const hasInboxEntry = lines.some(line => line.trim() === '.beep-boop-inbox/');
     const hasSection = lines.some(line => line.includes('# Beep/Boop coordination files'));
     
-    if (hasBeepEntry && hasBoopEntry) {
+    if (hasBeepEntry && hasBoopEntry && hasInboxEntry) {
       return false; // Already configured
     }
 
@@ -528,6 +529,10 @@ export async function ensureGitIgnoreEntries(
     
     if (!hasBoopEntry) {
       entriesToAdd.push(BOOP_FILE);
+    }
+
+    if (!hasInboxEntry) {
+      entriesToAdd.push('.beep-boop-inbox/');
     }
 
     if (entriesToAdd.length === 0) {

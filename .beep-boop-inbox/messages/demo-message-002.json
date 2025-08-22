@@ -1,0 +1,16 @@
+{
+  "id": "demo-message-002",
+  "platform": "discord",
+  "content": "Yes, please help! I specifically need you to add better code examples to the documentation and maybe create a quick start guide. The current docs are a bit sparse.",
+  "author": "developer-user",
+  "channel": {
+    "id": "123456789",
+    "name": "development"
+  },
+  "timestamp": "2024-08-22T02:26:00.000Z",
+  "replyContext": {
+    "channelId": "123456789",
+    "messageId": "987654322",
+    "threadId": "thread-123"
+  }
+}

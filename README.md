@@ -178,6 +178,208 @@ Manually creates a beep file to signal work completion.
 **Returns:**
 - Confirmation beep file was created
 
+#### `update_user`
+Posts follow-up messages to captured Discord/Slack threads for bidirectional communication.
+
+**Parameters:**
+- `messageId` (string): ID of the captured message to respond to
+- `updateContent` (string): Message content to send as an update
+
+**Returns:**
+- Confirmation that the update was posted to the original platform
+
+**Use Cases:**
+- Agent progress reports back to original Discord/Slack thread
+- Status updates during long-running tasks
+- Error notifications and recovery updates
+- Task completion confirmations
+
+#### `initiate_conversation`
+Proactively starts new conversations on Discord or Slack, enabling agents to notify users about work status, errors, or completion.
+
+**Parameters:**
+- `platform` ("discord" | "slack"): Target platform for the conversation
+- `channelId` (string, optional): Channel ID to send message to (uses default if omitted)
+- `content` (string): Initial message content to send
+- `agentId` (string, optional): Agent ID for attribution
+
+**Returns:**
+- Conversation details including message ID for follow-up updates
+- User response details if a reply is received within timeout period
+- Timeout notification if no user response within configured time limit
+
+**Conversation Flow Configuration:**
+- `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES` (default: 5) – How long to wait for user responses
+- `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS` (default: 2000) – How often to check for responses
+- `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS` (default: 3) – Retry attempts for Discord API failures
+- `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS` (default: 1000) – Base retry delay with exponential backoff
+- `BEEP_BOOP_DISCORD_API_TIMEOUT_MS` (default: 30000) – Individual Discord API call timeout
+
+**Use Cases:**
+- Notify users about completed background work
+- Alert about system issues or failures discovered during routine checks
+- Report completion of scheduled tasks or maintenance
+- Send proactive status updates for long-running processes
+- Alert users when manual intervention is needed
+
+#### `check_listener_status`
+Monitors the health and connectivity of the HTTP listener service used for centralized tool delegation.
+
+**Parameters:**
+- `includeConfig` (boolean, optional): Whether to include detailed configuration info
+
+**Returns:**
+- Configuration overview (enabled/disabled status, URLs, timeouts)
+- Connectivity test results (health check, MCP endpoint verification)  
+- Optional detailed configuration when requested
+
+**Use Cases:**
+- Verify ingress service connectivity before delegation
+- Troubleshoot communication issues with centralized listener
+- Debug listener configuration problems
+- Health checks for distributed agent systems
+- Validate webhook and bot token configuration
+
+## 📡 Ingress/Listener System
+
+The Beep/Boop MCP Server includes a powerful ingress system that captures messages from Discord and Slack, enabling bidirectional communication between AI agents and users.
+
+### Message Capture Workflow
+1. **Discord/Slack Bot** receives mentions or messages in configured channels
+2. **Message Storage** saves captured messages to `.beep-boop-inbox/messages/`
+3. **HTTP API** provides programmatic access to captured messages (port 7077)
+4. **Agent Processing** handles messages via MCP tools and posts updates using `update_user`
+5. **Message Acknowledgment** moves processed messages to `processed/` directory
+
+### Quick Setup
+
+#### Start Ingress Server
+```bash
+# Start the ingress listener
+npm run listen
+
+# Server will start on http://localhost:7077
+```
+
+#### Required Environment Variables
+**For Discord Integration:**
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true
+BEEP_BOOP_INGRESS_PROVIDER=discord
+BEEP_BOOP_DISCORD_BOT_TOKEN=your_discord_bot_token
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN=your_auth_token  # Optional but recommended
+```
+
+**For Slack Integration:**
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true
+BEEP_BOOP_INGRESS_PROVIDER=slack
+BEEP_BOOP_SLACK_APP_TOKEN=xapp-your_app_token      # Socket Mode required
+BEEP_BOOP_SLACK_BOT_TOKEN=xoxb-your_bot_token      # Bot token with proper scopes
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN=your_auth_token  # Optional but recommended
+```
+
+### HTTP API Endpoints
+
+Once the ingress server is running on port 7077, you can interact with captured messages:
+
+```bash
+# List all captured messages
+curl -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages
+
+# Get specific message details
+curl -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages/MESSAGE_ID
+
+# Acknowledge/process a message (moves to processed/)
+curl -X POST -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages/MESSAGE_ID/ack
+```
+
+### Message Format
+
+Captured messages are stored as JSON with rich metadata:
+```json
+{
+  "id": "uuid-string",
+  "platform": "discord" | "slack",
+  "content": "@bot-name please help me deploy the application",
+  "author": "username",
+  "channel": {
+    "id": "channel_id",
+    "name": "general"
+  },
+  "timestamp": "2024-08-20T10:30:00.000Z",
+  "replyContext": {
+    // Platform-specific reply information for update_user
+  }
+}
+```
+
+### Integration with Coordination
+
+The ingress system works seamlessly with beep/boop coordination:
+
+```typescript
+// Agent receives Discord/Slack message asking for deployment
+const message = await getMessageFromInbox(messageId);
+
+// Check if deployment directory is available
+const status = await mcpClient.callTool('check_status', {
+  directory: './deploy'
+});
+
+if (status.includes('WORK_IN_PROGRESS')) {
+  // Notify user that deployment is already in progress
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: "Deployment already in progress by another agent. Will queue your request."
+  });
+  return;
+}
+
+// Claim deployment directory and notify user
+await mcpClient.callTool('update_boop', {
+  directory: './deploy',
+  agentId: 'deploy-agent',
+  workDescription: 'Production deployment'
+});
+
+await mcpClient.callTool('update_user', {
+  messageId: message.id,
+  updateContent: "🚀 Starting deployment process. I'll update you with progress..."
+});
+
+// Perform deployment work...
+
+// Complete work and notify
+await mcpClient.callTool('end_work', {
+  directory: './deploy',
+  agentId: 'deploy-agent',
+  message: 'Production deployment completed successfully'
+});
+
+await mcpClient.callTool('update_user', {
+  messageId: message.id,
+  updateContent: "✅ Deployment completed successfully! Application is now live."
+});
+```
+
+### Bot Setup Requirements
+
+**Discord Bot Permissions:**
+- Guild Messages Intent
+- Message Content Intent
+- Send Messages permission in target channels
+
+**Slack App Configuration:**
+- Socket Mode enabled with app-level token
+- Bot token with `app_mentions:read` and `chat:write` scopes
+- Event subscriptions for `app_mention` events
+
+See `docs/INGRESS.md` and `docs/SCOPES_INTENTS.md` for detailed setup instructions.
+
 ## 🏗️ Architecture
 
 ### File Format
@@ -281,6 +483,48 @@ Server logs errors to `stderr` to avoid interfering with MCP protocol on `stdout
 
 ## 🧪 Testing
 
+### Ingress Listener (Discord/Slack)
+
+Quick test (Discord provider, placeholder token):
+
+- Do not paste secrets inline; export via your shell or MCP config.
+- Start with Discord first using a placeholder to validate wiring (HTTP starts, Discord login will fail fast with TokenInvalid, which confirms the path):
+
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true \
+BEEP_BOOP_INGRESS_PROVIDER=discord \
+BEEP_BOOP_DISCORD_BOT_TOKEN={{DISCORD_BOT_TOKEN}} \
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN={{INGRESS_TOKEN}} \
+BEEP_BOOP_LOG_LEVEL=debug \
+npm run listen
+```
+
+You should see:
+- Config summary
+- HTTP endpoint online (http://localhost:7077)
+- Discord TokenInvalid (expected when using a placeholder)
+
+HTTP endpoint usage (replace token if configured):
+```bash
+curl -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages
+curl -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages/<MESSAGE_ID>
+curl -X POST -H "Authorization: Bearer {{INGRESS_TOKEN}}" http://localhost:7077/messages/<MESSAGE_ID>/ack
+```
+
+To actually test Discord end-to-end, set a valid BEEP_BOOP_DISCORD_BOT_TOKEN and invite the bot to your server with intents enabled (Guilds, Guild Messages, Message Content). Mention the bot to create a captured message and get an immediate ack reply.
+
+To test Slack, set:
+- BEEP_BOOP_INGRESS_PROVIDER=slack
+- BEEP_BOOP_SLACK_APP_TOKEN=xapp-… (Socket Mode app-level token with connections:write)
+- BEEP_BOOP_SLACK_BOT_TOKEN=xoxb-… (bot token with app_mentions:read, chat:write; add history scopes as needed if you want to capture non-mention messages)
+
+Then run:
+```bash
+npm run listen
+```
+
+See docs/INGRESS.md and docs/SCOPES_INTENTS.md for full setup.
+
 Run the test suite:
 ```bash
 npm test
@@ -296,6 +540,25 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
 ```
 
 ## 🤝 Integration Examples
+
+### MCP tool: update_user
+
+Agents can post follow-up updates back to the original Slack thread or Discord channel for a captured message.
+
+Input fields:
+- messageId: ID of the captured message (from the local inbox)
+- updateContent: message text to send
+
+Example (pseudo):
+```json path=null start=null
+{
+  "tool": "update_user",
+  "params": {
+    "messageId": "2b1b8e02-6c6b-4a3d-9f0f-123456789abc",
+    "updateContent": "I'll start preparing a deployment plan and report back within 10 minutes."
+  }
+}
+```
 
 ### With Task Planners
 ```typescript
@@ -337,28 +600,59 @@ if (boopAge > 30 * 60 * 1000) { // 30 minutes
 ### Project Structure
 ```
 src/
-  ├── index.ts          # Main MCP server entry point  
-  ├── types.ts          # TypeScript interfaces
-  ├── config.ts         # Configuration management
-  ├── file-operations.ts # Core beep/boop logic
-  └── tools.ts          # MCP tool implementations
+  ├── index.ts              # Main MCP server entry point  
+  ├── types.ts              # TypeScript interfaces
+  ├── config.ts             # Configuration management
+  ├── file-operations.ts    # Core beep/boop logic
+  ├── tools.ts              # MCP tool implementations
+  ├── notification-service.ts # Discord/Slack webhook notifications
+  ├── http-listener-client.ts # HTTP client for ingress server
+  └── ingress/              # Message capture and processing
+      ├── index.ts          # Ingress server entry point
+      ├── discord-listener.ts # Discord bot integration
+      ├── slack-listener.ts # Slack bot integration
+      └── inbox.ts          # Message storage and retrieval
+
+root/
+├── test-webhooks.ts      # Webhook integration testing script
+├── .beep-boop-inbox/     # Message storage directory (auto-created)
+│   ├── messages/         # Captured messages from Discord/Slack
+│   └── processed/        # Acknowledged/processed messages
+└── example-configs/      # Environment-specific configurations
+    ├── select-config.sh  # Interactive config selection script
+    ├── mcp-config.development.json
+    ├── mcp-config.production.json
+    ├── mcp-config.ci.json
+    └── mcp-config.enterprise.json
+
 docs/
-  ├── AGENT_COORDINATION_RULE.md  # Core coordination principles
-  ├── BEEP_BOOP_RULE.md          # Tool usage reference
-  ├── CONFIGURATION.md           # Environment variables guide
-  └── stale-cleanup-example.md   # Advanced cleanup scenarios
-example-configs/
-  ├── mcp-config.development.json
-  ├── mcp-config.ci.json
-  ├── mcp-config.enterprise.json
-  ├── select-config.sh
-  └── example-client.js
+├── AGENT_COORDINATION_RULE.md  # Core coordination principles
+├── BEEP_BOOP_RULE.md          # Tool usage reference
+├── CONFIGURATION.md           # Environment variables guide
+├── INGRESS.md                 # Discord/Slack integration guide
+├── SCOPES_INTENTS.md          # Bot permissions setup
+└── stale-cleanup-example.md   # Advanced cleanup scenarios
 ```
 
-### Building
+### Building and Testing
 ```bash
-npm run build  # Compile TypeScript
+# Development commands
 npm run dev    # Development mode with hot reload
+npm run build  # Compile TypeScript to dist/
+npm start      # Start production server
+npm run listen # Start ingress server for Discord/Slack
+
+# Testing commands
+npm test              # Run test suite (build verification)
+npm run test:webhooks # Test Discord/Slack webhook integrations
+npx tsc --noEmit     # TypeScript compilation check
+
+# Configuration management
+npm run config                # Interactive configuration selection
+npm run config:dev           # Apply development configuration
+npm run config:prod          # Apply production configuration
+npm run config:ci            # Apply CI/CD configuration
+npm run config:enterprise    # Apply enterprise configuration
 ```
 
 ### Contributing
