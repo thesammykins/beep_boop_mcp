@@ -7,7 +7,7 @@
 - fix(ingress): lazy-load provider listeners and adjust Slack Bolt import for ESM interop
 - docs(ingress): add INGRESS quickstart, SCOPES_INTENTS, and README updates for Discord-first test and update_user tool
 - docs(ingress): add step-by-step token acquisition for Slack Socket Mode and Discord, plus HTTP bearer token guidance
-- feat(ingress): default inbox to /Users/samanthamyers, create Discord threads and capture replies, post updates into threads, auto-start ingress with MCP server; docs updated
+- feat(ingress): default inbox to /Users/{current_user}, create Discord threads and capture replies, post updates into threads, auto-start ingress with MCP server; docs updated
 - working mcp conversation tool
 - feat: comprehensive documentation validation and update
 - feat: add comprehensive ingress/listener system for Discord and Slack integration
