@@ -406,6 +406,22 @@ node dist/index.js
 - **Graceful Fallback**: Logs errors but doesn't fail operations if .gitignore update fails
 - **Configurable**: Use `BEEP_BOOP_MANAGE_GITIGNORE=false` to disable
 
+### Conversation Flow Enhancement
+The system includes configurable conversation flow settings for optimal user experience:
+
+**Environment Variables:**
+- `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES=5` - How long to wait for user responses
+- `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS=2000` - How often to check for responses
+- `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS=3` - Retry attempts for Discord API calls
+- `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS=1000` - Base delay with exponential backoff
+- `BEEP_BOOP_DISCORD_API_TIMEOUT_MS=30000` - Individual Discord API call timeout
+
+**Features:**
+- **Configurable timeouts** for different environments (3 minutes dev, 5+ production)
+- **Discord API retry logic** with exponential backoff to handle API latency
+- **Adaptive polling** for efficient response detection
+- **Environment-specific defaults** in configuration profiles
+
 ### Webhook Testing
 The `test-webhooks.ts` script provides comprehensive testing for Discord/Slack webhook integrations:
 

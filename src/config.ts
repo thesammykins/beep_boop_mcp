@@ -83,6 +83,15 @@ export interface BeepBoopConfig {
   // Discord
   discordBotToken?: string;
   discordDefaultChannelId?: string; // Channel for proactive agent messaging
+  
+  // Conversation flow settings
+  conversationTimeoutMinutes: number; // How long to wait for user responses
+  conversationPollIntervalMs: number; // How often to check for user responses
+  
+  // Discord API reliability settings
+  discordApiRetryAttempts: number; // Number of retry attempts for Discord API calls
+  discordApiRetryBaseDelayMs: number; // Base delay between retries (exponential backoff)
+  discordApiTimeoutMs: number; // Timeout for individual Discord API calls
 }
 
 /**
@@ -166,7 +175,16 @@ export function loadConfig(): BeepBoopConfig {
 
     // Discord
     discordBotToken: process.env.BEEP_BOOP_DISCORD_BOT_TOKEN,
-    discordDefaultChannelId: process.env.BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID
+    discordDefaultChannelId: process.env.BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID,
+    
+    // Conversation flow settings
+    conversationTimeoutMinutes: parseInt(process.env.BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES || '5', 10),
+    conversationPollIntervalMs: parseInt(process.env.BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS || '2000', 10),
+    
+    // Discord API reliability settings
+    discordApiRetryAttempts: parseInt(process.env.BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS || '3', 10),
+    discordApiRetryBaseDelayMs: parseInt(process.env.BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS || '1000', 10),
+    discordApiTimeoutMs: parseInt(process.env.BEEP_BOOP_DISCORD_API_TIMEOUT_MS || '30000', 10)
   };
   
   // Handle backward compatibility for legacy webhook config

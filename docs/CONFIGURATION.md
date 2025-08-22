@@ -137,6 +137,21 @@ cp mcp-config.enterprise.json mcp-config.json
 | `BEEP_BOOP_SLACK_APP_TOKEN` | `` | Slack app-level token (xapp-...) for Socket Mode |
 | `BEEP_BOOP_SLACK_BOT_TOKEN` | `` | Slack bot token (xoxb-...) for message sending |
 
+### Conversation Flow Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES` | `5` | How long to wait for user responses in initiated conversations |
+| `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS` | `2000` | How often to check for user responses (milliseconds) |
+
+### Discord API Reliability Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS` | `3` | Number of retry attempts for Discord API calls |
+| `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS` | `1000` | Base delay between retries (exponential backoff) |
+| `BEEP_BOOP_DISCORD_API_TIMEOUT_MS` | `30000` | Timeout for individual Discord API calls |
+
 ### Automatic Startup Control
 
 | Variable | Default | Description |

@@ -221,13 +221,23 @@ Proactively start new conversations on Discord or Slack.
 **Delegation Behavior:**
 - When `BEEP_BOOP_LISTENER_ENABLED=true`, this tool delegates to the central HTTP listener for better coordination.
 - Automatically creates Discord threads for interactive conversations.
-- Waits for user responses and returns conversation details.
+- Waits for user responses with configurable timeout periods.
+- Uses Discord API retry logic with exponential backoff for reliability.
 
 **Input:**
 - platform ("discord" | "slack") – Target platform
 - channelId (string, optional) – Channel ID (uses default if omitted)
 - content (string) – Initial message content
 - agentId (string, optional) – Agent ID for attribution
+
+**Conversation Flow Configuration:**
+- `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES` (default: 5) – How long to wait for user responses
+- `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS` (default: 2000) – How often to check for responses
+
+**Discord API Reliability Configuration:**
+- `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS` (default: 3) – Retry attempts for API failures
+- `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS` (default: 1000) – Base retry delay with exponential backoff
+- `BEEP_BOOP_DISCORD_API_TIMEOUT_MS` (default: 30000) – Individual API call timeout
 
 ### check_listener_status
 Monitor the health and connectivity of the centralized HTTP listener.

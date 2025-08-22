@@ -334,9 +334,9 @@ function startHttpServer(config: BeepBoopConfig, inbox: InboxStore) {
               ? `Discord thread ${threadId} in channel ${finalChannelId}`
               : `${platform} channel ${finalChannelId}`;
             
-            // Wait for user response in the thread/channel
-            const maxWaitTimeMs = 5 * 60 * 1000; // 5 minutes timeout
-            const pollIntervalMs = 2000; // Check every 2 seconds
+            // Wait for user response in the thread/channel (configurable)
+            const maxWaitTimeMs = cfg.conversationTimeoutMinutes * 60 * 1000;
+            const pollIntervalMs = cfg.conversationPollIntervalMs;
             const startTime = Date.now();
             
             let pollCount = 0;
@@ -375,7 +375,7 @@ function startHttpServer(config: BeepBoopConfig, inbox: InboxStore) {
             }
             
             // Timeout reached without user response
-            const timeoutText = `⏰ Conversation initiated on ${platformInfo}${agentId ? ` by agent ${agentId}` : ''}, but no user response received within 5 minutes.\n\n**Message ID**: ${ingressMessage.id}\n\nThe conversation thread is still active - you can use update_user to continue when the user responds.`;
+            const timeoutText = `⏰ Conversation initiated on ${platformInfo}${agentId ? ` by agent ${agentId}` : ''}, but no user response received within ${cfg.conversationTimeoutMinutes} minutes.\n\n**Message ID**: ${ingressMessage.id}\n\nThe conversation thread is still active - you can use update_user to continue when the user responds.`;
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ text: timeoutText }));
             return;

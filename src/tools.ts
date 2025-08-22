@@ -773,7 +773,9 @@ export async function handleInitiateConversation(params: InitiateConversationPar
       try {
         const { listenerClient } = await import('./http-listener-client.js');
         const payload = { platform, channelId, content, agentId };
-        const res = await listenerClient.post('/mcp/initiate_conversation', payload);
+        // Use conversation timeout (in ms) for this call instead of default listener timeout
+        const conversationTimeoutMs = config.conversationTimeoutMinutes * 60 * 1000;
+        const res = await listenerClient.post('/mcp/initiate_conversation', payload, conversationTimeoutMs);
         if (res.ok) {
           const text = typeof res.data?.text === 'string' ? res.data.text : `✅ Conversation initiated via listener`;
           return { content: [{ type: 'text', text }] };
@@ -828,36 +830,43 @@ export async function handleInitiateConversation(params: InitiateConversationPar
         return { content: [{ type: 'text', text: '❌ Discord bot token not configured' }], isError: true };
       }
       
-      const { REST, Routes, Client, GatewayIntentBits } = await import('discord.js');
+      const { REST, Routes } = await import('discord.js');
+      const { sendDiscordMessage, createDiscordThread } = await import('./discord-api-client.js');
       const rest = new (REST as any)({ version: '10' }).setToken(config.discordBotToken);
       
       const message = agentId 
         ? `**[${agentId}]** ${content}` 
         : content;
       
-      const result = await rest.post((Routes as any).channelMessages(finalChannelId), { 
-        body: { content: message } 
-      });
+      // Send initial message with retry logic
+      const messageResult = await sendDiscordMessage(rest, Routes, finalChannelId, message, config);
       
-      messageId = result.id;
+      if (!messageResult.success) {
+        return { 
+          content: [{ 
+            type: 'text', 
+            text: `❌ Failed to send Discord message after ${messageResult.attempts} attempts: ${messageResult.error}` 
+          }], 
+          isError: true 
+        };
+      }
       
-      // Create a thread for back-and-forth conversation
-      try {
-        const threadName = content.length > 80 ? content.slice(0, 77) + '...' : content;
-        const threadResult = await rest.post(
-          (Routes as any).threads(finalChannelId, messageId),
-          {
-            body: {
-              name: threadName,
-              auto_archive_duration: 60,
-              reason: 'Beep/Boop agent initiated conversation'
-            }
-          }
-        );
-        threadId = threadResult.id;
-      } catch (error) {
+      messageId = messageResult.data.id;
+      
+      // Create a thread for back-and-forth conversation with retry logic
+      const threadName = content.length > 80 ? content.slice(0, 77) + '...' : content;
+      const threadResult = await createDiscordThread(rest, Routes, finalChannelId, messageId, threadName, config);
+      
+      if (threadResult.success) {
+        threadId = threadResult.data.id;
+        if (config.logLevel === 'debug') {
+          console.error(`[DEBUG] Discord thread created successfully: ${threadId}`);
+        }
+      } else {
         // Thread creation failed but message was sent - not critical
-        console.error('Failed to create Discord thread:', error);
+        if (config.logLevel === 'debug') {
+          console.error(`[DEBUG] Failed to create Discord thread after ${threadResult.attempts} attempts: ${threadResult.error}`);
+        }
       }
       
     } else {
@@ -894,9 +903,9 @@ export async function handleInitiateConversation(params: InitiateConversationPar
       
       console.error(`[DEBUG] Starting to wait for user response on ${platformInfo}`);
       
-      // Wait for user response in the thread/channel
-      const maxWaitTimeMs = 5 * 60 * 1000; // 5 minutes timeout
-      const pollIntervalMs = 2000; // Check every 2 seconds
+      // Wait for user response in the thread/channel (configurable)
+      const maxWaitTimeMs = config.conversationTimeoutMinutes * 60 * 1000;
+      const pollIntervalMs = config.conversationPollIntervalMs;
       const startTime = Date.now();
       console.error(`[DEBUG] Polling starts now, will check every ${pollIntervalMs}ms for ${maxWaitTimeMs}ms`);
       
@@ -961,7 +970,7 @@ export async function handleInitiateConversation(params: InitiateConversationPar
       return {
         content: [{
           type: 'text',
-          text: `⏰ Conversation initiated on ${platformInfo}${agentId ? ` by agent ${agentId}` : ''}, but no user response received within 5 minutes.\n\n**Message ID**: ${ingressMessage.id}\n\nThe conversation thread is still active - you can use update_user to continue when the user responds.`
+          text: `⏰ Conversation initiated on ${platformInfo}${agentId ? ` by agent ${agentId}` : ''}, but no user response received within ${config.conversationTimeoutMinutes} minutes.\n\n**Message ID**: ${ingressMessage.id}\n\nThe conversation thread is still active - you can use update_user to continue when the user responds.`
         }]
       };
       

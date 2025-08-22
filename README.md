@@ -206,6 +206,14 @@ Proactively starts new conversations on Discord or Slack, enabling agents to not
 **Returns:**
 - Conversation details including message ID for follow-up updates
 - User response details if a reply is received within timeout period
+- Timeout notification if no user response within configured time limit
+
+**Conversation Flow Configuration:**
+- `BEEP_BOOP_CONVERSATION_TIMEOUT_MINUTES` (default: 5) – How long to wait for user responses
+- `BEEP_BOOP_CONVERSATION_POLL_INTERVAL_MS` (default: 2000) – How often to check for responses
+- `BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS` (default: 3) – Retry attempts for Discord API failures
+- `BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS` (default: 1000) – Base retry delay with exponential backoff
+- `BEEP_BOOP_DISCORD_API_TIMEOUT_MS` (default: 30000) – Individual Discord API call timeout
 
 **Use Cases:**
 - Notify users about completed background work

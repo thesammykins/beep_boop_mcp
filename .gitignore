@@ -158,3 +158,5 @@ coordination-audit.log
 # Local webhook configuration (keep example files)
 .env.webhooks
 webhook-test.local.*
+
+.beep-boop-inbox/
