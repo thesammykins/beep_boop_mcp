@@ -719,6 +719,10 @@ export async function handleUpdateUser(params: UpdateUserParams): Promise<ToolRe
 
     // Fallback to local platform posting
     const inbox = new (await import('./ingress/inbox.js')).InboxStore(config);
+    
+    // Trigger auto-cleanup (non-blocking)
+    inbox.autoCleanup();
+    
     const msg = await inbox.read(messageId);
     if (!msg) {
       return { content: [{ type: 'text', text: `❌ Message ${messageId} not found` }], isError: true };
@@ -878,6 +882,9 @@ export async function handleInitiateConversation(params: InitiateConversationPar
       const { InboxStore } = await import('./ingress/inbox.js');
       const { randomUUID } = await import('crypto');
       const inbox = new InboxStore(config);
+      
+      // Trigger auto-cleanup (non-blocking)
+      inbox.autoCleanup();
       
       const ingressMessage = {
         id: randomUUID(),
@@ -1074,6 +1081,37 @@ export async function handleCheckListenerStatus(params: { includeConfig?: boolea
       responseText += `• Check if the ingress service is running on ${config.listenerBaseUrl}\n`;
       responseText += `• Verify auth token is correct\n`;
       responseText += `• Check network connectivity and firewall settings\n`;
+    }
+    
+    // Include inbox statistics and cleanup info
+    try {
+      const { InboxStore } = await import('./ingress/inbox.js');
+      const inbox = new InboxStore(config);
+      
+      // Get inbox statistics
+      const stats = await inbox.getStats();
+      responseText += `\n📮 **Inbox Statistics:**\n`;
+      responseText += `• Unprocessed messages: ${stats.unprocessed}\n`;
+      responseText += `• Processed messages: ${stats.processed}\n`;
+      responseText += `• Last cleanup: ${stats.lastCleanup || 'Never'}\n`;
+      responseText += `• Cleanup enabled: ${config.inboxCleanupEnabled ? '✅ Yes' : '❌ No'}\n`;
+      
+      if (config.inboxCleanupEnabled) {
+        responseText += `• Processed retention: ${config.inboxProcessedRetentionDays} days\n`;
+        responseText += `• Unprocessed retention: ${config.inboxUnprocessedRetentionDays} days\n`;
+        if (config.inboxMaxFilesPerDir > 0) {
+          responseText += `• Max files per directory: ${config.inboxMaxFilesPerDir}\n`;
+        }
+      }
+      
+      // Trigger auto-cleanup (non-blocking)
+      inbox.autoCleanup();
+      
+    } catch (error) {
+      if (config.logLevel === 'debug') {
+        console.error(`Failed to get inbox statistics: ${error}`);
+      }
+      responseText += `\n📮 **Inbox Statistics:** Unable to load\n`;
     }
     
     // Include detailed config if requested

@@ -92,6 +92,14 @@ export interface BeepBoopConfig {
   discordApiRetryAttempts: number; // Number of retry attempts for Discord API calls
   discordApiRetryBaseDelayMs: number; // Base delay between retries (exponential backoff)
   discordApiTimeoutMs: number; // Timeout for individual Discord API calls
+  
+  // Inbox cleanup settings
+  inboxCleanupEnabled: boolean; // Enable automatic cleanup of old inbox messages
+  inboxProcessedRetentionDays: number; // How long to keep processed messages (default: 7 days)
+  inboxUnprocessedRetentionDays: number; // How long to keep unprocessed messages (default: 30 days)
+  inboxMaxFilesPerDir: number; // Maximum files per directory before forcing cleanup (0 = no limit)
+  inboxCleanupOnStartup: boolean; // Run cleanup when MCP server starts
+  inboxCleanupIntervalHours: number; // How often to run automatic cleanup (0 = disabled)
 }
 
 /**
@@ -184,7 +192,15 @@ export function loadConfig(): BeepBoopConfig {
     // Discord API reliability settings
     discordApiRetryAttempts: parseInt(process.env.BEEP_BOOP_DISCORD_API_RETRY_ATTEMPTS || '3', 10),
     discordApiRetryBaseDelayMs: parseInt(process.env.BEEP_BOOP_DISCORD_API_RETRY_BASE_DELAY_MS || '1000', 10),
-    discordApiTimeoutMs: parseInt(process.env.BEEP_BOOP_DISCORD_API_TIMEOUT_MS || '30000', 10)
+    discordApiTimeoutMs: parseInt(process.env.BEEP_BOOP_DISCORD_API_TIMEOUT_MS || '30000', 10),
+    
+    // Inbox cleanup settings
+    inboxCleanupEnabled: process.env.BEEP_BOOP_INBOX_CLEANUP_ENABLED !== 'false', // Default to true
+    inboxProcessedRetentionDays: parseInt(process.env.BEEP_BOOP_INBOX_PROCESSED_RETENTION_DAYS || '7', 10),
+    inboxUnprocessedRetentionDays: parseInt(process.env.BEEP_BOOP_INBOX_UNPROCESSED_RETENTION_DAYS || '30', 10),
+    inboxMaxFilesPerDir: parseInt(process.env.BEEP_BOOP_INBOX_MAX_FILES_PER_DIR || '0', 10), // 0 = no limit
+    inboxCleanupOnStartup: process.env.BEEP_BOOP_INBOX_CLEANUP_ON_STARTUP !== 'false', // Default to true
+    inboxCleanupIntervalHours: parseInt(process.env.BEEP_BOOP_INBOX_CLEANUP_INTERVAL_HOURS || '24', 10) // Run daily
   };
   
   // Handle backward compatibility for legacy webhook config
