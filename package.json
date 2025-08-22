@@ -1,6 +1,6 @@
 {
   "name": "@thesammykins/beep-boop-mcp-server",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MCP server for monorepo work coordination using beep/boop files",
   "main": "dist/index.js",
   "type": "module",

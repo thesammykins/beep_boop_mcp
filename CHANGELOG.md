@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1] - 2025-08-22
+
+- Update CHANGELOG.md
+
 ## [1.2.0] - 2025-08-22
 
 - feat(ingress): add Slack Socket Mode and Discord gateway listeners, file-based inbox, local HTTP endpoint, and update_user MCP tool
