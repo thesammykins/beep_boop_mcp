@@ -146,3 +146,15 @@ export interface UpdateUserParams {
   /** Message content to send as an update */
   updateContent: string;
 }
+
+/** Parameters for initiating a new conversation proactively */
+export interface InitiateConversationParams {
+  /** Platform to send message to ('slack' or 'discord') */
+  platform: 'slack' | 'discord';
+  /** Channel ID to send message to (optional - uses default if not specified) */
+  channelId?: string;
+  /** Initial message content to send */
+  content: string;
+  /** Optional agent ID for attribution */
+  agentId?: string;
+}

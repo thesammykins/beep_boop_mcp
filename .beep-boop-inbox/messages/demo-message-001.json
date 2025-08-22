@@ -1,0 +1,16 @@
+{
+  "id": "demo-message-001",
+  "platform": "discord",
+  "content": "@bot-agent can you help me update the documentation in the src/ directory? I need to improve the README and add some new examples.",
+  "author": "developer-user",
+  "channel": {
+    "id": "123456789",
+    "name": "development"
+  },
+  "timestamp": "2024-08-22T02:25:00.000Z",
+  "replyContext": {
+    "channelId": "123456789",
+    "messageId": "987654321",
+    "threadId": null
+  }
+}

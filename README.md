@@ -178,6 +178,162 @@ Manually creates a beep file to signal work completion.
 **Returns:**
 - Confirmation beep file was created
 
+#### `update_user`
+Posts follow-up messages to captured Discord/Slack threads for bidirectional communication.
+
+**Parameters:**
+- `messageId` (string): ID of the captured message to respond to
+- `updateContent` (string): Message content to send as an update
+
+**Returns:**
+- Confirmation that the update was posted to the original platform
+
+**Use Cases:**
+- Agent progress reports back to original Discord/Slack thread
+- Status updates during long-running tasks
+- Error notifications and recovery updates
+- Task completion confirmations
+
+## 📡 Ingress/Listener System
+
+The Beep/Boop MCP Server includes a powerful ingress system that captures messages from Discord and Slack, enabling bidirectional communication between AI agents and users.
+
+### Message Capture Workflow
+1. **Discord/Slack Bot** receives mentions or messages in configured channels
+2. **Message Storage** saves captured messages to `.beep-boop-inbox/messages/`
+3. **HTTP API** provides programmatic access to captured messages (port 7077)
+4. **Agent Processing** handles messages via MCP tools and posts updates using `update_user`
+5. **Message Acknowledgment** moves processed messages to `processed/` directory
+
+### Quick Setup
+
+#### Start Ingress Server
+```bash
+# Start the ingress listener
+npm run listen
+
+# Server will start on http://localhost:7077
+```
+
+#### Required Environment Variables
+**For Discord Integration:**
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true
+BEEP_BOOP_INGRESS_PROVIDER=discord
+BEEP_BOOP_DISCORD_BOT_TOKEN=your_discord_bot_token
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN=your_auth_token  # Optional but recommended
+```
+
+**For Slack Integration:**
+```bash
+BEEP_BOOP_INGRESS_ENABLED=true
+BEEP_BOOP_INGRESS_PROVIDER=slack
+BEEP_BOOP_SLACK_APP_TOKEN=xapp-your_app_token      # Socket Mode required
+BEEP_BOOP_SLACK_BOT_TOKEN=xoxb-your_bot_token      # Bot token with proper scopes
+BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN=your_auth_token  # Optional but recommended
+```
+
+### HTTP API Endpoints
+
+Once the ingress server is running on port 7077, you can interact with captured messages:
+
+```bash
+# List all captured messages
+curl -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages
+
+# Get specific message details
+curl -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages/MESSAGE_ID
+
+# Acknowledge/process a message (moves to processed/)
+curl -X POST -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+     http://localhost:7077/messages/MESSAGE_ID/ack
+```
+
+### Message Format
+
+Captured messages are stored as JSON with rich metadata:
+```json
+{
+  "id": "uuid-string",
+  "platform": "discord" | "slack",
+  "content": "@bot-name please help me deploy the application",
+  "author": "username",
+  "channel": {
+    "id": "channel_id",
+    "name": "general"
+  },
+  "timestamp": "2024-08-20T10:30:00.000Z",
+  "replyContext": {
+    // Platform-specific reply information for update_user
+  }
+}
+```
+
+### Integration with Coordination
+
+The ingress system works seamlessly with beep/boop coordination:
+
+```typescript
+// Agent receives Discord/Slack message asking for deployment
+const message = await getMessageFromInbox(messageId);
+
+// Check if deployment directory is available
+const status = await mcpClient.callTool('check_status', {
+  directory: './deploy'
+});
+
+if (status.includes('WORK_IN_PROGRESS')) {
+  // Notify user that deployment is already in progress
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: "Deployment already in progress by another agent. Will queue your request."
+  });
+  return;
+}
+
+// Claim deployment directory and notify user
+await mcpClient.callTool('update_boop', {
+  directory: './deploy',
+  agentId: 'deploy-agent',
+  workDescription: 'Production deployment'
+});
+
+await mcpClient.callTool('update_user', {
+  messageId: message.id,
+  updateContent: "🚀 Starting deployment process. I'll update you with progress..."
+});
+
+// Perform deployment work...
+
+// Complete work and notify
+await mcpClient.callTool('end_work', {
+  directory: './deploy',
+  agentId: 'deploy-agent',
+  message: 'Production deployment completed successfully'
+});
+
+await mcpClient.callTool('update_user', {
+  messageId: message.id,
+  updateContent: "✅ Deployment completed successfully! Application is now live."
+});
+```
+
+### Bot Setup Requirements
+
+**Discord Bot Permissions:**
+- Guild Messages Intent
+- Message Content Intent
+- Send Messages permission in target channels
+
+**Slack App Configuration:**
+- Socket Mode enabled with app-level token
+- Bot token with `app_mentions:read` and `chat:write` scopes
+- Event subscriptions for `app_mention` events
+
+See `docs/INGRESS.md` and `docs/SCOPES_INTENTS.md` for detailed setup instructions.
+
 ## 🏗️ Architecture
 
 ### File Format
@@ -398,28 +554,59 @@ if (boopAge > 30 * 60 * 1000) { // 30 minutes
 ### Project Structure
 ```
 src/
-  ├── index.ts          # Main MCP server entry point  
-  ├── types.ts          # TypeScript interfaces
-  ├── config.ts         # Configuration management
-  ├── file-operations.ts # Core beep/boop logic
-  └── tools.ts          # MCP tool implementations
+  ├── index.ts              # Main MCP server entry point  
+  ├── types.ts              # TypeScript interfaces
+  ├── config.ts             # Configuration management
+  ├── file-operations.ts    # Core beep/boop logic
+  ├── tools.ts              # MCP tool implementations
+  ├── notification-service.ts # Discord/Slack webhook notifications
+  ├── http-listener-client.ts # HTTP client for ingress server
+  └── ingress/              # Message capture and processing
+      ├── index.ts          # Ingress server entry point
+      ├── discord-listener.ts # Discord bot integration
+      ├── slack-listener.ts # Slack bot integration
+      └── inbox.ts          # Message storage and retrieval
+
+root/
+├── test-webhooks.ts      # Webhook integration testing script
+├── .beep-boop-inbox/     # Message storage directory (auto-created)
+│   ├── messages/         # Captured messages from Discord/Slack
+│   └── processed/        # Acknowledged/processed messages
+└── example-configs/      # Environment-specific configurations
+    ├── select-config.sh  # Interactive config selection script
+    ├── mcp-config.development.json
+    ├── mcp-config.production.json
+    ├── mcp-config.ci.json
+    └── mcp-config.enterprise.json
+
 docs/
-  ├── AGENT_COORDINATION_RULE.md  # Core coordination principles
-  ├── BEEP_BOOP_RULE.md          # Tool usage reference
-  ├── CONFIGURATION.md           # Environment variables guide
-  └── stale-cleanup-example.md   # Advanced cleanup scenarios
-example-configs/
-  ├── mcp-config.development.json
-  ├── mcp-config.ci.json
-  ├── mcp-config.enterprise.json
-  ├── select-config.sh
-  └── example-client.js
+├── AGENT_COORDINATION_RULE.md  # Core coordination principles
+├── BEEP_BOOP_RULE.md          # Tool usage reference
+├── CONFIGURATION.md           # Environment variables guide
+├── INGRESS.md                 # Discord/Slack integration guide
+├── SCOPES_INTENTS.md          # Bot permissions setup
+└── stale-cleanup-example.md   # Advanced cleanup scenarios
 ```
 
-### Building
+### Building and Testing
 ```bash
-npm run build  # Compile TypeScript
+# Development commands
 npm run dev    # Development mode with hot reload
+npm run build  # Compile TypeScript to dist/
+npm start      # Start production server
+npm run listen # Start ingress server for Discord/Slack
+
+# Testing commands
+npm test              # Run test suite (build verification)
+npm run test:webhooks # Test Discord/Slack webhook integrations
+npx tsc --noEmit     # TypeScript compilation check
+
+# Configuration management
+npm run config                # Interactive configuration selection
+npm run config:dev           # Apply development configuration
+npm run config:prod          # Apply production configuration
+npm run config:ci            # Apply CI/CD configuration
+npm run config:enterprise    # Apply enterprise configuration
 ```
 
 ### Contributing

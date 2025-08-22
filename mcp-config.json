@@ -16,7 +16,9 @@
         "BEEP_BOOP_BLOCKED_DIRECTORIES": "/tmp,/var,/etc",
         "BEEP_BOOP_ENABLE_METRICS": "false",
         "BEEP_BOOP_TIMEZONE": "UTC",
-        "BEEP_BOOP_MANAGE_GITIGNORE": "true"
+        "BEEP_BOOP_MANAGE_GITIGNORE": "true",
+        "BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID": "1408235462769901598",
+        "BEEP_BOOP_LISTENER_ENABLED": "true"
       }
     }
   }

@@ -11,7 +11,8 @@ import {
   UpdateBoopParams,
   EndWorkParams,
   CheckStatusParams,
-  UpdateUserParams
+  UpdateUserParams,
+  InitiateConversationParams
 } from './types.js';
 import {
   createBeepFile,
@@ -70,6 +71,19 @@ export const CheckStatusSchema = z.object({
 export const UpdateUserSchema = z.object({
   messageId: z.string().describe('ID of the captured message to respond to'),
   updateContent: z.string().describe('Message content to send as an update')
+});
+
+/** Schema for initiate_conversation tool parameters */
+export const InitiateConversationSchema = z.object({
+  platform: z.enum(['slack', 'discord']).describe('Platform to send message to'),
+  channelId: z.string().optional().describe('Channel ID to send message to (optional - uses default if not specified)'),
+  content: z.string().describe('Initial message content to send'),
+  agentId: z.string().optional().describe('Optional agent ID for attribution')
+});
+
+/** Schema for check_listener_status tool parameters */
+export const CheckListenerStatusSchema = z.object({
+  includeConfig: z.boolean().optional().default(false).describe('Whether to include configuration details in response')
 });
 
 /**
@@ -418,7 +432,26 @@ export async function handleCheckStatus(params: CheckStatusParams): Promise<Tool
       newAgentId, 
       newWorkDescription 
     } = params;
+
+    const config = loadConfig();
+
+    // If central listener is enabled, delegate synchronously and return its response
+    if (config.listenerEnabled) {
+      try {
+        const { listenerClient } = await import('./http-listener-client.js');
+        const payload = { directory, maxAgeHours, autoCleanStale, newAgentId, newWorkDescription };
+        const res = await listenerClient.post('/mcp/check_status', payload);
+        if (res.ok) {
+          const text = typeof res.data?.text === 'string' ? res.data.text : JSON.stringify(res.data ?? { ok: true });
+          return { content: [{ type: 'text', text }] };
+        }
+        return { content: [{ type: 'text', text: `❌ Listener error (${res.status}): ${res.error || 'unknown error'}` }], isError: true };
+      } catch (e) {
+        return { content: [{ type: 'text', text: `❌ Listener call failed: ${e}` }], isError: true };
+      }
+    }
     
+    // Fallback to local implementation
     let status = await getWorkStatus(directory);
     let cleanupPerformed = false;
     let cleanupMessage = '';
@@ -432,7 +465,6 @@ export async function handleCheckStatus(params: CheckStatusParams): Promise<Tool
         if (autoCleanStale) {
           // Validate new agent ID if provided
           if (newAgentId) {
-            const config = loadConfig();
             if (!validateAgentIdWithConfig(newAgentId, config)) {
               const reasons = [];
               if (newAgentId.length > config.maxAgentIdLength) {
@@ -459,7 +491,6 @@ export async function handleCheckStatus(params: CheckStatusParams): Promise<Tool
           }
           
           // Send stale detection notification first
-          const config = loadConfig();
           if (config.enableNotifications) {
             try {
               const notificationManager = createNotificationManager(config);
@@ -669,6 +700,24 @@ export async function handleUpdateUser(params: UpdateUserParams): Promise<ToolRe
   try {
     const { messageId, updateContent } = params;
     const config = loadConfig();
+
+    // If central listener is enabled, delegate synchronously and return its response
+    if (config.listenerEnabled) {
+      try {
+        const { listenerClient } = await import('./http-listener-client.js');
+        const payload = { messageId, updateContent };
+        const res = await listenerClient.post('/mcp/update_user', payload);
+        if (res.ok) {
+          const text = typeof res.data?.text === 'string' ? res.data.text : `✅ Update sent for message ${messageId}`;
+          return { content: [{ type: 'text', text }] };
+        }
+        return { content: [{ type: 'text', text: `❌ Listener error (${res.status}): ${res.error || 'unknown error'}` }], isError: true };
+      } catch (e) {
+        return { content: [{ type: 'text', text: `❌ Listener call failed: ${e}` }], isError: true };
+      }
+    }
+
+    // Fallback to local platform posting
     const inbox = new (await import('./ingress/inbox.js')).InboxStore(config);
     const msg = await inbox.read(messageId);
     if (!msg) {
@@ -704,5 +753,339 @@ export async function handleUpdateUser(params: UpdateUserParams): Promise<ToolRe
     return { content: [{ type: 'text', text: `✅ Update sent for message ${messageId}` }] };
   } catch (error) {
     return { content: [{ type: 'text', text: `❌ Failed to send update: ${error}` }], isError: true };
+  }
+}
+
+/**
+ * Tool: initiate_conversation
+ * Proactively starts a new conversation on Discord or Slack
+ */
+export async function handleInitiateConversation(params: InitiateConversationParams): Promise<ToolResponse> {
+  console.error(`[DEBUG] FUNCTION ENTRY: handleInitiateConversation called with agent ${params.agentId}`);
+  try {
+    const { platform, channelId, content, agentId } = params;
+    const config = loadConfig();
+    console.error(`[DEBUG] CONFIG LOADED: listenerEnabled=${config.listenerEnabled}`);
+    
+    // If central listener is enabled, delegate synchronously and return its response
+    if (config.listenerEnabled) {
+      console.error(`[DEBUG] DELEGATING TO LISTENER`);
+      try {
+        const { listenerClient } = await import('./http-listener-client.js');
+        const payload = { platform, channelId, content, agentId };
+        const res = await listenerClient.post('/mcp/initiate_conversation', payload);
+        if (res.ok) {
+          const text = typeof res.data?.text === 'string' ? res.data.text : `✅ Conversation initiated via listener`;
+          return { content: [{ type: 'text', text }] };
+        }
+        return { content: [{ type: 'text', text: `❌ Listener error (${res.status}): ${res.error || 'unknown error'}` }], isError: true };
+      } catch (e) {
+        console.error(`[DEBUG] LISTENER DELEGATION FAILED: ${e}`);
+        return { content: [{ type: 'text', text: `❌ Listener call failed: ${e}` }], isError: true };
+      }
+    }
+    
+    console.error(`[DEBUG] PROCEEDING WITH LOCAL IMPLEMENTATION`);
+
+    let finalChannelId = channelId;
+    
+    // Use default channel if none specified and Discord
+    if (!finalChannelId && platform === 'discord' && config.discordDefaultChannelId) {
+      finalChannelId = config.discordDefaultChannelId;
+    }
+    
+    if (!finalChannelId) {
+      return { 
+        content: [{ type: 'text', text: `❌ No channel ID specified and no default channel configured for ${platform}` }], 
+        isError: true 
+      };
+    }
+
+    let messageId: string;
+    let threadId: string | undefined;
+    
+    if (platform === 'slack') {
+      if (!config.slackBotToken) {
+        return { content: [{ type: 'text', text: '❌ Slack bot token not configured' }], isError: true };
+      }
+      
+      const { WebClient } = await import('@slack/web-api');
+      const web = new WebClient(config.slackBotToken);
+      
+      const message = agentId 
+        ? `[${agentId}] ${content}` 
+        : content;
+      
+      const result = await web.chat.postMessage({ 
+        channel: finalChannelId, 
+        text: message 
+      });
+      
+      messageId = result.message?.ts || '';
+      
+    } else if (platform === 'discord') {
+      if (!config.discordBotToken) {
+        return { content: [{ type: 'text', text: '❌ Discord bot token not configured' }], isError: true };
+      }
+      
+      const { REST, Routes, Client, GatewayIntentBits } = await import('discord.js');
+      const rest = new (REST as any)({ version: '10' }).setToken(config.discordBotToken);
+      
+      const message = agentId 
+        ? `**[${agentId}]** ${content}` 
+        : content;
+      
+      const result = await rest.post((Routes as any).channelMessages(finalChannelId), { 
+        body: { content: message } 
+      });
+      
+      messageId = result.id;
+      
+      // Create a thread for back-and-forth conversation
+      try {
+        const threadName = content.length > 80 ? content.slice(0, 77) + '...' : content;
+        const threadResult = await rest.post(
+          (Routes as any).threads(finalChannelId, messageId),
+          {
+            body: {
+              name: threadName,
+              auto_archive_duration: 60,
+              reason: 'Beep/Boop agent initiated conversation'
+            }
+          }
+        );
+        threadId = threadResult.id;
+      } catch (error) {
+        // Thread creation failed but message was sent - not critical
+        console.error('Failed to create Discord thread:', error);
+      }
+      
+    } else {
+      return { content: [{ type: 'text', text: `❌ Unsupported platform: ${platform}` }], isError: true };
+    }
+
+    // Store the message in inbox for future reference/replies
+    try {
+      const { InboxStore } = await import('./ingress/inbox.js');
+      const { randomUUID } = await import('crypto');
+      const inbox = new InboxStore(config);
+      
+      const ingressMessage = {
+        id: randomUUID(),
+        platform: platform as 'slack' | 'discord',
+        text: content,
+        raw: { initiatedBy: 'agent', agentId },
+        authoredBy: { id: agentId || 'system', username: agentId || 'Beep/Boop Agent' },
+        context: {
+          channelId: finalChannelId,
+          messageId,
+          threadId,
+          ...(platform === 'slack' ? { threadTs: messageId } : {})
+        },
+        createdAt: new Date().toISOString()
+      };
+      
+      await inbox.put(ingressMessage);
+      console.error(`[DEBUG] Message stored successfully with ID: ${ingressMessage.id}`);
+      
+      const platformInfo = platform === 'discord' && threadId 
+        ? `Discord thread ${threadId} in channel ${finalChannelId}`
+        : `${platform} channel ${finalChannelId}`;
+      
+      console.error(`[DEBUG] Starting to wait for user response on ${platformInfo}`);
+      
+      // Wait for user response in the thread/channel
+      const maxWaitTimeMs = 5 * 60 * 1000; // 5 minutes timeout
+      const pollIntervalMs = 2000; // Check every 2 seconds
+      const startTime = Date.now();
+      console.error(`[DEBUG] Polling starts now, will check every ${pollIntervalMs}ms for ${maxWaitTimeMs}ms`);
+      
+      // Add initial debug info
+      const debugInfo = {
+        threadId,
+        messageId,
+        agentId: agentId || 'system',
+        initialTime: ingressMessage.createdAt,
+        platform,
+        finalChannelId
+      };
+      
+      let pollCount = 0;
+      while (Date.now() - startTime < maxWaitTimeMs) {
+        pollCount++;
+        
+        // Check for new messages in the inbox that are replies to our thread
+        const messageIds = await inbox.list();
+        
+        // Debug: Log poll attempt
+        if (pollCount % 15 === 1) { // Log every 30 seconds
+          console.error(`[DEBUG] Poll attempt ${pollCount}, found ${messageIds.length} messages in inbox`);
+        }
+        
+        for (const msgFile of messageIds) {
+          const msgId = msgFile.replace('.json', '');
+          const msg = await inbox.read(msgId);
+          
+          if (msg && msg.platform === platform) {
+            // Check if this message is a reply in our thread/channel
+            const isReply = platform === 'discord' 
+              ? (msg.context as any).threadId === threadId
+              : (msg.context as any).threadTs === messageId || msg.context.channelId === finalChannelId;
+            
+            // Make sure it's not our own message and it's newer than our message
+            const isUserMessage = msg.authoredBy.id !== (agentId || 'system') && 
+                                 new Date(msg.createdAt) > new Date(ingressMessage.createdAt);
+            
+            // Debug logging for message analysis
+            if (msg.id !== ingressMessage.id && pollCount % 15 === 1) {
+              console.error(`[DEBUG] Analyzing message ${msg.id}: isReply=${isReply}, isUserMessage=${isUserMessage}, authorId=${msg.authoredBy.id}, created=${msg.createdAt}`);
+            }
+            
+            if (isReply && isUserMessage) {
+              // Found a user response!
+              return {
+                content: [{
+                  type: 'text',
+                  text: `✅ Conversation initiated and user responded!\n\n**Platform**: ${platformInfo}\n**Agent**: ${agentId || 'system'}\n**Initial Message ID**: ${ingressMessage.id}\n\n**User Response**:\n**From**: ${msg.authoredBy.username || msg.authoredBy.id}\n**Message**: ${msg.text}\n**Response ID**: ${msg.id}\n\n**Debug Info**: Found after ${pollCount} polls in ${Math.round((Date.now() - startTime) / 1000)}s\n\nYou can continue the conversation using update_user with either message ID.`
+                }]
+              };
+            }
+          }
+        }
+        
+        // Wait before checking again
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      }
+      
+      // Timeout reached without user response
+      return {
+        content: [{
+          type: 'text',
+          text: `⏰ Conversation initiated on ${platformInfo}${agentId ? ` by agent ${agentId}` : ''}, but no user response received within 5 minutes.\n\n**Message ID**: ${ingressMessage.id}\n\nThe conversation thread is still active - you can use update_user to continue when the user responds.`
+        }]
+      };
+      
+    } catch (error) {
+      // Message was sent but inbox storage failed - still a success
+      return {
+        content: [{
+          type: 'text',
+          text: `✅ Message sent to ${platform} channel ${finalChannelId}${agentId ? ` by agent ${agentId}` : ''}, but failed to store for future updates: ${error}`
+        }]
+      };
+    }
+    
+  } catch (error) {
+    return { content: [{ type: 'text', text: `❌ Failed to initiate conversation: ${error}` }], isError: true };
+  }
+}
+
+/**
+ * Tool: check_listener_status
+ * Checks the status and connectivity of the HTTP listener service
+ */
+export async function handleCheckListenerStatus(params: { includeConfig?: boolean } = {}): Promise<ToolResponse> {
+  try {
+    const { includeConfig = false } = params;
+    const config = loadConfig();
+    
+    let responseText = '🔍 **Listener Status Check**\n\n';
+    
+    // Configuration info
+    responseText += `📋 **Configuration:**\n`;
+    responseText += `• Listener Enabled: ${config.listenerEnabled ? '✅ Yes' : '❌ No'}\n`;
+    responseText += `• Base URL: ${config.listenerBaseUrl || 'Not configured'}\n`;
+    responseText += `• Auth Token: ${config.listenerAuthToken ? '✅ Configured' : '❌ Not configured'}\n`;
+    responseText += `• Timeout: ${config.listenerTimeoutBaseMs}ms base, ${config.listenerTimeoutMaxMs}ms max\n\n`;
+    
+    if (!config.listenerEnabled) {
+      responseText += '⚠️ **Listener is disabled** - tools will use local implementation instead of HTTP delegation.\n';
+      return { content: [{ type: 'text', text: responseText }] };
+    }
+    
+    if (!config.listenerBaseUrl) {
+      responseText += '❌ **Listener base URL not configured** - cannot test connectivity.\n';
+      return { content: [{ type: 'text', text: responseText }], isError: true };
+    }
+    
+    // Test connectivity
+    responseText += '🌐 **Connectivity Test:**\n';
+    
+    try {
+      const { listenerClient } = await import('./http-listener-client.js');
+      
+      // Test health endpoint (using POST as that's what the client supports)
+      const startTime = Date.now();
+      let healthWorking = false;
+      
+      try {
+        const healthRes = await listenerClient.post('/health', {});
+        const responseTime = Date.now() - startTime;
+        
+        if (healthRes.ok) {
+          responseText += `\u2705 Health check passed (${responseTime}ms)\n`;
+          if (healthRes.data) {
+            responseText += `\u2022 Response: ${JSON.stringify(healthRes.data)}\n`;
+          }
+          healthWorking = true;
+        } else if (healthRes.status === 404) {
+          responseText += `\u26a0\ufe0f Health endpoint not found (404) - this is normal for some listener versions\n`;
+        } else {
+          responseText += `\u274c Health check failed (${healthRes.status}): ${healthRes.error}\n`;
+        }
+      } catch (healthError) {
+        responseText += `\u26a0\ufe0f Health endpoint test failed: ${healthError}\n`;
+      }
+      
+      // Test a known MCP endpoint to verify core functionality
+      try {
+        // Use a more reasonable test directory that might exist
+        const testDir = process.env.HOME || '/Users/' + (process.env.USER || 'user');
+        const testRes = await listenerClient.post('/mcp/check_status', {
+          directory: testDir,
+          maxAgeHours: 24
+        });
+        
+        if (testRes.ok) {
+          responseText += `\u2705 MCP endpoint connectivity confirmed\n`;
+          responseText += `\u2022 Successfully communicated with listener service\n`;
+        } else {
+          // Even errors show the service is reachable
+          responseText += `\u2705 MCP endpoint reachable (got ${testRes.status} response)\n`;
+          responseText += `\u2022 Service is running and processing requests\n`;
+        }
+      } catch (mcpError) {
+        responseText += `\u274c MCP endpoint test failed: ${mcpError}\n`;
+        responseText += `\u2022 This indicates the listener service may not be running\n`;
+      }
+      
+    } catch (error) {
+      responseText += `❌ Connectivity test failed: ${error}\n`;
+      responseText += `\n🔧 **Troubleshooting:**\n`;
+      responseText += `• Check if the ingress service is running on ${config.listenerBaseUrl}\n`;
+      responseText += `• Verify auth token is correct\n`;
+      responseText += `• Check network connectivity and firewall settings\n`;
+    }
+    
+    // Include detailed config if requested
+    if (includeConfig) {
+      responseText += `\n⚙️ **Detailed Configuration:**\n`;
+      responseText += `• Ingress Enabled: ${config.ingressEnabled}\n`;
+      responseText += `• Ingress Provider: ${config.ingressProvider}\n`;
+      responseText += `• Ingress HTTP Port: ${config.ingressHttpPort}\n`;
+      responseText += `• Ingress HTTP Enabled: ${config.ingressHttpEnabled}\n`;
+      responseText += `• Max Concurrent Requests: ${config.maxConcurrentListenerRequests}\n`;
+      responseText += `• Discord Default Channel: ${config.discordDefaultChannelId || 'Not configured'}\n`;
+      responseText += `• Discord Bot Token: ${config.discordBotToken ? '✅ Configured' : '❌ Not configured'}\n`;
+      responseText += `• Slack Bot Token: ${config.slackBotToken ? '✅ Configured' : '❌ Not configured'}\n`;
+    }
+    
+    return { content: [{ type: 'text', text: responseText }] };
+    
+  } catch (error) {
+    return { 
+      content: [{ type: 'text', text: `❌ Failed to check listener status: ${error}` }], 
+      isError: true 
+    };
   }
 }

@@ -59,7 +59,7 @@ export interface BeepBoopConfig {
   // Git integration
   manageGitIgnore: boolean;
 
-  // Ingress listener feature
+  // Ingress listener feature (capture & local HTTP)
   ingressEnabled: boolean;
   ingressProvider: 'slack' | 'discord' | 'none';
   ingressHttpEnabled: boolean;
@@ -67,12 +67,22 @@ export interface BeepBoopConfig {
   ingressHttpAuthToken?: string;
   ingressInboxDir: string;
 
+  // Central HTTP listener delegation (synchronous request/response)
+  listenerEnabled: boolean;
+  listenerBaseUrl?: string;
+  listenerAuthToken?: string;
+  listenerTimeoutBaseMs: number;
+  listenerTimeoutPerCharMs: number; // adaptive wait for larger responses
+  listenerTimeoutMaxMs: number; // hard cap
+  maxConcurrentListenerRequests: number;
+
   // Slack (Socket Mode)
   slackAppToken?: string; // xapp-... (Socket Mode)
   slackBotToken?: string; // xoxb-...
 
   // Discord
   discordBotToken?: string;
+  discordDefaultChannelId?: string; // Channel for proactive agent messaging
 }
 
 /**
@@ -141,16 +151,37 @@ export function loadConfig(): BeepBoopConfig {
     ingressHttpAuthToken: process.env.BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN,
     ingressInboxDir: process.env.BEEP_BOOP_INGRESS_INBOX_DIR || path.join(os.homedir(), '.beep-boop-inbox'),
 
+    // Central HTTP listener delegation (synchronous request/response)
+    listenerEnabled: process.env.BEEP_BOOP_LISTENER_ENABLED === 'true',
+    listenerBaseUrl: process.env.BEEP_BOOP_LISTENER_BASE_URL || `http://localhost:${process.env.BEEP_BOOP_INGRESS_HTTP_PORT || '7077'}`,
+    listenerAuthToken: process.env.BEEP_BOOP_LISTENER_AUTH_TOKEN,
+    listenerTimeoutBaseMs: parseInt(process.env.BEEP_BOOP_LISTENER_TIMEOUT_BASE_MS || '10000', 10),
+    listenerTimeoutPerCharMs: parseInt(process.env.BEEP_BOOP_LISTENER_TIMEOUT_PER_CHAR_MS || '5', 10),
+    listenerTimeoutMaxMs: parseInt(process.env.BEEP_BOOP_LISTENER_TIMEOUT_MAX_MS || '60000', 10),
+    maxConcurrentListenerRequests: parseInt(process.env.BEEP_BOOP_MAX_CONCURRENT_LISTENER_REQUESTS || '25', 10),
+
     // Slack
     slackAppToken: process.env.BEEP_BOOP_SLACK_APP_TOKEN,
     slackBotToken: process.env.BEEP_BOOP_SLACK_BOT_TOKEN,
 
     // Discord
-    discordBotToken: process.env.BEEP_BOOP_DISCORD_BOT_TOKEN
+    discordBotToken: process.env.BEEP_BOOP_DISCORD_BOT_TOKEN,
+    discordDefaultChannelId: process.env.BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID
   };
   
   // Handle backward compatibility for legacy webhook config
   handleLegacyWebhookConfig(config);
+
+  // If listener is targeting local ingress and no explicit listener token provided, reuse ingress token
+  try {
+    const defaultLocalBase = `http://localhost:${config.ingressHttpPort}`;
+    if (config.listenerEnabled && !config.listenerAuthToken && config.listenerBaseUrl && config.listenerBaseUrl.startsWith(defaultLocalBase) && config.ingressHttpAuthToken) {
+      config.listenerAuthToken = config.ingressHttpAuthToken;
+      if (config.logLevel === 'debug') {
+        console.error('🔐 Using ingress HTTP auth token for listener requests');
+      }
+    }
+  } catch {}
   
   // Validate configuration
   validateConfig(config);
@@ -215,6 +246,19 @@ function validateConfig(config: BeepBoopConfig): void {
   }
   if (config.ingressEnabled && config.ingressProvider === 'none') {
     throw new Error('Ingress enabled but no provider selected. Set BEEP_BOOP_INGRESS_PROVIDER=slack or discord');
+  }
+
+  // Validate listener delegation
+  if (config.listenerEnabled) {
+    if (!config.listenerBaseUrl || !/^https?:\/\//.test(config.listenerBaseUrl)) {
+      throw new Error('BEEP_BOOP_LISTENER_BASE_URL must be set to a valid http(s) URL when BEEP_BOOP_LISTENER_ENABLED=true');
+    }
+    if (config.maxConcurrentListenerRequests < 1 || config.maxConcurrentListenerRequests > 500) {
+      throw new Error('BEEP_BOOP_MAX_CONCURRENT_LISTENER_REQUESTS must be between 1 and 500');
+    }
+    if (config.listenerTimeoutBaseMs < 1000 || config.listenerTimeoutMaxMs < config.listenerTimeoutBaseMs) {
+      throw new Error('Listener timeout values are invalid. Ensure base >= 1000 and max >= base.');
+    }
   }
 }
 
@@ -368,6 +412,14 @@ export function printConfigSummary(config: BeepBoopConfig): void {
       console.error(`   • Inbox dir: ${config.ingressInboxDir}`);
       console.error(`   • Slack Socket Mode: ${config.slackAppToken && config.slackBotToken ? 'configured' : 'not configured'}`);
       console.error(`   • Discord Bot: ${config.discordBotToken ? 'configured' : 'not configured'}`);
+      if (config.discordBotToken && config.discordDefaultChannelId) {
+        console.error(`   • Discord Default Channel: ${config.discordDefaultChannelId}`);
+      }
+    }
+    console.error(`   • Central Listener: ${config.listenerEnabled ? `enabled (${config.listenerBaseUrl})` : 'disabled'}`);
+    if (config.listenerEnabled) {
+      console.error(`   • Listener timeouts: base=${config.listenerTimeoutBaseMs}ms, perChar=${config.listenerTimeoutPerCharMs}ms, max=${config.listenerTimeoutMaxMs}ms`);
+      console.error(`   • Max concurrent listener requests: ${config.maxConcurrentListenerRequests}`);
     }
   }
 }

@@ -56,7 +56,6 @@ export class InboxStore {
       return false;
     }
   }
-}
 
   async updateThreadId(id: string, threadId: string): Promise<boolean> {
     const file = join(this.config.ingressInboxDir, `${id}.json`);

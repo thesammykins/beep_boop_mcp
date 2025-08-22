@@ -10,10 +10,10 @@ echo
 
 # Available configurations
 CONFIGS=(
-    "development:Fast cleanup, debug logging, development directories"
-    "production:Secure defaults, audit logging, conservative timeouts"  
+    "development:Fast cleanup, debug logging, ingress disabled"
+    "production:Balanced settings, Slack ingress, production stability"  
     "ci:Aggressive cleanup, minimal logging, CI/CD optimized"
-    "enterprise:Team prefixes, notifications, compliance features"
+    "enterprise:Team prefixes, full ingress, notifications, compliance"
 )
 
 # Function to show available configurations
@@ -48,6 +48,10 @@ apply_config() {
         echo "   Auto cleanup: $(jq -r '.mcpServers[].env.BEEP_BOOP_AUTO_CLEANUP_ENABLED // "false"' mcp-config.json)"
         echo "   Log level: $(jq -r '.mcpServers[].env.BEEP_BOOP_LOG_LEVEL // "info"' mcp-config.json)"
         echo "   Backup enabled: $(jq -r '.mcpServers[].env.BEEP_BOOP_BACKUP_ENABLED // "false"' mcp-config.json)"
+        echo "   Ingress enabled: $(jq -r '.mcpServers[].env.BEEP_BOOP_INGRESS_ENABLED // "false"' mcp-config.json)"
+        echo "   Ingress provider: $(jq -r '.mcpServers[].env.BEEP_BOOP_INGRESS_PROVIDER // "none"' mcp-config.json)"
+        echo "   Notifications: $(jq -r '.mcpServers[].env.BEEP_BOOP_ENABLE_NOTIFICATIONS // "false"' mcp-config.json)"
+        echo "   Notification service: $(jq -r '.mcpServers[].env.BEEP_BOOP_NOTIFICATION_SERVICE // "none"' mcp-config.json)"
     else
         echo "   (Install 'jq' to see detailed settings)"
     fi
@@ -84,11 +88,43 @@ else
     fi
 fi
 
+# Show setup guidance based on configuration
+echo
+if command -v jq >/dev/null 2>&1; then
+    ingress_enabled=$(jq -r '.mcpServers[].env.BEEP_BOOP_INGRESS_ENABLED // "false"' mcp-config.json)
+    notifications_enabled=$(jq -r '.mcpServers[].env.BEEP_BOOP_ENABLE_NOTIFICATIONS // "false"' mcp-config.json)
+    
+    if [[ "$ingress_enabled" == "true" ]]; then
+        echo "📡 Ingress Setup Required:"
+        echo "   1. Configure Discord/Slack bot tokens (replace {{TOKEN}} placeholders)"
+        echo "   2. Start ingress listener: npm run listen"
+        echo "   3. See docs/INGRESS.md for detailed setup instructions"
+        echo
+    fi
+    
+    if [[ "$notifications_enabled" == "true" ]]; then
+        echo "🔔 Webhook Setup Required:"
+        echo "   1. Configure webhook URLs (replace {{WEBHOOK_URL}} placeholders)"
+        echo "   2. Test webhooks: npm run test:webhooks"
+        echo "   3. See WEBHOOKS.md for setup instructions"
+        echo
+    fi
+else
+    ingress_enabled="unknown"
+    notifications_enabled="unknown"
+fi
+
 echo
 echo "🚀 Ready to start the server with:"
 echo "   npm run dev    # Development mode"
 echo "   npm start      # Production mode"
+if [[ "$ingress_enabled" == "true" ]]; then
+    echo "   npm run listen # Ingress/listener mode (Discord/Slack)"
+fi
 echo
-echo "📖 View configuration details:"
+echo "📚 View configuration details:"
 echo "   cat mcp-config.json"
 echo "   cat CONFIGURATION.md"
+if [[ "$ingress_enabled" == "true" ]]; then
+    echo "   cat docs/INGRESS.md"
+fi

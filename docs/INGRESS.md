@@ -25,6 +25,7 @@ Slack (Socket Mode):
 
 Discord:
 - BEEP_BOOP_DISCORD_BOT_TOKEN=...
+- BEEP_BOOP_DISCORD_DEFAULT_CHANNEL_ID=... (optional - for proactive agent messaging)
 
 ## Where to get tokens (Slack/Discord)
 
@@ -73,7 +74,13 @@ Follow these steps to obtain the required tokens for the listener. Never commit 
 3) Invite the bot to your server
 - Go to “OAuth2” → “URL Generator”.
 - Scopes: check “bot”.
-- Bot Permissions: minimally “Send Messages”, “Read Messages/View Channels”, and “Read Message History”.
+- Bot Permissions (required for threads):
+  - View Channels (a.k.a. Read Messages/View Channels)
+  - Send Messages
+  - Read Message History
+  - Create Public Threads
+  - Send Messages in Threads
+  - (Optional) Create Private Threads — only if you plan to create private threads
 - Copy the generated URL, open it in a browser, select your server, and authorize.
 
 4) Test
@@ -127,6 +134,8 @@ If BEEP_BOOP_INGRESS_HTTP_AUTH_TOKEN is set, include header:
 ## MCP tool: update_user
 
 Use this to post follow-up updates back to the original platform/thread.
+
+When BEEP_BOOP_LISTENER_ENABLED=true, update_user is delegated to the central HTTP listener and the MCP server waits synchronously for the listener response before returning. Otherwise it falls back to posting directly to Slack/Discord.
 
 Input:
 - messageId (string) – ID returned by the ingress capture

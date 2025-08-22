@@ -6,6 +6,8 @@
 
 **Essential workflow**: `check_status` → `update_boop` → *do work* → `end_work`. Never skip the coordination checks or leave `boop` files behind when your work is complete.
 
+**For interactive workflows with Discord/Slack**: Use `update_user` to send progress reports, error notifications, and status updates back to the original message thread. Use `initiate_conversation` to proactively start new conversations when agents need to notify users about work status, errors, or completion. This enables bidirectional communication between agents and users during coordinated work.
+
 ---
 
 This rule provides comprehensive guidance for AI agents on how to use the Beep/Boop MCP server for coordinating work in monorepos and shared codebases.
@@ -84,7 +86,50 @@ This automatically:
 2. Creates a `beep` file 
 3. Signals directory is cleared for new work
 
-## Example Workflow
+### 5. Communication with Users (Optional)
+
+For interactive workflows with Discord/Slack integration:
+
+```
+Use MCP tool: update_user
+Parameters: {
+  "messageId": "captured-message-id",
+  "updateContent": "Status update or progress report"
+}
+```
+
+**Use Cases:**
+- Progress reports during long-running work
+- Error notifications and recovery updates  
+- Completion confirmations
+- Request additional input or clarification
+
+### 6. Proactive Communication (Optional)
+
+For initiating new conversations when agents need to notify users:
+
+```
+Use MCP tool: initiate_conversation
+Parameters: {
+  "platform": "discord", // or "slack"
+  "channelId": "optional-specific-channel-id", // uses default if omitted
+  "content": "Initial message to send",
+  "agentId": "your-unique-agent-id" // optional for attribution
+}
+```
+
+**Use Cases:**
+- Notify users about completed background work
+- Alert about system issues or failures discovered during routine checks
+- Report completion of scheduled tasks or maintenance
+- Send proactive status updates for long-running processes
+- Alert users when manual intervention is needed
+
+**Response**: Returns a message ID that can be used with `update_user` for follow-up messages in the same conversation thread.
+
+## Example Workflows
+
+### Basic Coordination Workflow
 
 ```typescript
 // 1. Check status before starting
@@ -115,6 +160,280 @@ await mcpClient.callTool('end_work', {
 });
 ```
 
+### Interactive Discord/Slack Workflow
+
+```typescript
+// Agent receives message from Discord/Slack ingress system
+const message = await getMessageFromInbox(messageId);
+const { content, author, platform } = message;
+
+// Parse request (e.g., "deploy to production")
+const deployRequest = parseDeploymentRequest(content);
+const targetDirectory = './deploy';
+
+// 1. Check coordination status
+const status = await mcpClient.callTool('check_status', {
+  directory: targetDirectory
+});
+
+if (status.includes('WORK_IN_PROGRESS')) {
+  // Notify user of conflict via update_user
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: `⚠️ Deployment already in progress by another agent. Your request is queued.`
+  });
+  
+  // Queue the request or wait...
+  return;
+}
+
+// 2. Claim directory and notify user
+await mcpClient.callTool('update_boop', {
+  directory: targetDirectory,
+  agentId: 'deployment-agent',
+  workDescription: `${platform} requested deployment by ${author}`
+});
+
+await mcpClient.callTool('update_user', {
+  messageId: message.id,
+  updateContent: `🚀 Starting deployment to ${deployRequest.environment}. I'll keep you updated...`
+});
+
+// 3. Perform deployment work with progress updates
+try {
+  // Pre-deployment checks
+  await runPreDeploymentChecks();
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: `✅ Pre-deployment checks passed. Building application...`
+  });
+  
+  // Build and deploy
+  await buildApplication();
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: `🔨 Build complete. Deploying to ${deployRequest.environment}...`
+  });
+  
+  await deployToEnvironment(deployRequest.environment);
+  
+  // 4. Signal completion with success message
+  await mcpClient.callTool('end_work', {
+    directory: targetDirectory,
+    agentId: 'deployment-agent',
+    message: `Successfully deployed to ${deployRequest.environment}`
+  });
+  
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: `✅ Deployment completed successfully!\n🌍 Application is now live at: ${deployRequest.url}`
+  });
+  
+} catch (error) {
+  // Handle errors gracefully
+  await mcpClient.callTool('end_work', {
+    directory: targetDirectory,
+    agentId: 'deployment-agent',
+    message: `Deployment failed: ${error.message}`
+  });
+  
+  await mcpClient.callTool('update_user', {
+    messageId: message.id,
+    updateContent: `❌ Deployment failed: ${error.message}\n🔧 Please check the logs and retry.`
+  });
+}
+```
+
+### Multi-Agent Coordination with User Communication
+
+```typescript
+// Agent A: Database migration agent
+async function handleDatabaseMigration(messageId: string, migrationRequest: any) {
+  const dbDirectory = './database/migrations';
+  
+  // Check if migration directory is available
+  const status = await mcpClient.callTool('check_status', {
+    directory: dbDirectory,
+    maxAgeHours: 1,  // Consider migrations stale after 1 hour
+    autoCleanStale: true  // Auto-cleanup for shorter tasks
+  });
+  
+  if (status.includes('WORK_IN_PROGRESS')) {
+    await mcpClient.callTool('update_user', {
+      messageId,
+      updateContent: `🔄 Database migration already in progress. Please wait...`
+    });
+    return;
+  }
+  
+  // Claim and execute
+  await mcpClient.callTool('update_boop', {
+    directory: dbDirectory,
+    agentId: 'db-migration-agent',
+    workDescription: `Running migration: ${migrationRequest.name}`
+  });
+  
+  await mcpClient.callTool('update_user', {
+    messageId,
+    updateContent: `🗄️ Starting database migration: ${migrationRequest.name}`
+  });
+  
+  // Run migration...
+  await runMigration(migrationRequest);
+  
+  await mcpClient.callTool('end_work', {
+    directory: dbDirectory,
+    agentId: 'db-migration-agent',
+    message: `Migration ${migrationRequest.name} completed`
+  });
+  
+  // Notify completion - this signals Agent B can proceed
+  await mcpClient.callTool('update_user', {
+    messageId,
+    updateContent: `✅ Database migration completed. Application deployment can now proceed.`
+  });
+}
+
+// Agent B: Deployment agent waiting for migration
+async function handleDeploymentAfterMigration(messageId: string) {
+  const deployDirectory = './deploy';
+  const dbDirectory = './database/migrations';
+  
+  // Wait for database migration to complete
+  while (true) {
+    const dbStatus = await mcpClient.callTool('check_status', {
+      directory: dbDirectory
+    });
+    
+    if (dbStatus.includes('WORK_ALLOWED')) {
+      // Migration completed, proceed with deployment
+      break;
+    } else if (dbStatus.includes('WORK_IN_PROGRESS')) {
+      // Still migrating, wait and update user
+      await mcpClient.callTool('update_user', {
+        messageId,
+        updateContent: `⏳ Waiting for database migration to complete before deployment...`
+      });
+      await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30s
+    } else {
+      // No migration in progress, proceed
+      break;
+    }
+  }
+  
+  // Now proceed with deployment
+  await mcpClient.callTool('update_boop', {
+    directory: deployDirectory,
+    agentId: 'deployment-agent',
+    workDescription: 'Post-migration deployment'
+  });
+  
+  // ... rest of deployment logic
+}
+```
+
+### Proactive Communication Workflow
+
+```typescript
+// Background monitoring agent that discovers an issue and proactively notifies users
+async function performSystemHealthCheck() {
+  const systemDirectory = './system';
+  
+  // Claim system directory for health check
+  await mcpClient.callTool('update_boop', {
+    directory: systemDirectory,
+    agentId: 'health-monitor-agent',
+    workDescription: 'Performing system health check'
+  });
+  
+  try {
+    // Run various health checks
+    const issues = await runHealthChecks();
+    
+    if (issues.length > 0) {
+      // Critical issues found - proactively notify users
+      const conversationResult = await mcpClient.callTool('initiate_conversation', {
+        platform: 'discord',
+        // channelId omitted to use default channel
+        content: `🚨 **System Health Alert**\n\nI discovered ${issues.length} critical issues during routine health check:\n\n${issues.map(issue => `• ${issue.description}`).join('\n')}\n\nRequesting immediate attention for system stability.`,
+        agentId: 'health-monitor-agent'
+      });
+      
+      // Parse the conversation result to get the message ID
+      const messageId = conversationResult.content[0].text.match(/Message ID: ([a-zA-Z0-9-]+)/)?.[1];
+      
+      if (messageId) {
+        // Provide detailed breakdown in follow-up messages
+        for (const issue of issues) {
+          await mcpClient.callTool('update_user', {
+            messageId,
+            updateContent: `🔍 **Issue Details: ${issue.title}**\n\n**Severity**: ${issue.severity}\n**Component**: ${issue.component}\n**Description**: ${issue.description}\n**Recommended Action**: ${issue.action}\n\n**Logs**: \`\`\`\n${issue.logs}\n\`\`\``
+          });
+        }
+        
+        // Provide summary and next steps
+        await mcpClient.callTool('update_user', {
+          messageId,
+          updateContent: `📋 **Summary**: ${issues.filter(i => i.severity === 'critical').length} critical, ${issues.filter(i => i.severity === 'warning').length} warnings\n\n🔧 **Immediate Actions Required**:\n1. Review critical issues above\n2. Check system logs: \`docker logs app-container\`\n3. Verify database connectivity\n4. Monitor CPU/memory usage\n\n🤖 I'll continue monitoring and update you on any changes.`
+        });
+      }
+    } else {
+      // All good - just log internally, no need to notify users
+      console.log('✅ System health check passed - all systems normal');
+    }
+    
+  } finally {
+    // Always clean up
+    await mcpClient.callTool('end_work', {
+      directory: systemDirectory,
+      agentId: 'health-monitor-agent',
+      message: issues.length > 0 ? `Health check completed - ${issues.length} issues found` : 'Health check completed - all systems healthy'
+    });
+  }
+}
+
+// Scheduled task completion agent
+async function notifyScheduledTaskCompletion(taskName: string, results: any) {
+  // Initiate conversation to notify about completed background task
+  const conversationResult = await mcpClient.callTool('initiate_conversation', {
+    platform: 'discord',
+    content: `✅ **Scheduled Task Completed: ${taskName}**\n\nBackground task has finished successfully. Results summary:\n\n• **Duration**: ${results.duration}\n• **Items Processed**: ${results.itemsProcessed}\n• **Success Rate**: ${results.successRate}%\n• **Errors**: ${results.errors.length}\n\nFull details in thread below.`,
+    agentId: 'scheduler-agent'
+  });
+  
+  const messageId = conversationResult.content[0].text.match(/Message ID: ([a-zA-Z0-9-]+)/)?.[1];
+  
+  if (messageId && results.errors.length > 0) {
+    // Provide error details only if there were issues
+    await mcpClient.callTool('update_user', {
+      messageId,
+      updateContent: `❌ **Errors Encountered**:\n\n${results.errors.map((error, index) => `${index + 1}. ${error.message}\n   **Item**: ${error.item}\n   **Action**: ${error.suggestedAction}\n`).join('\n')}\n\n📈 **Performance Metrics**:\n• Average processing time: ${results.avgProcessingTime}ms\n• Memory usage: ${results.memoryUsage}\n• CPU utilization: ${results.cpuUsage}%`
+    });
+  }
+}
+
+// Agent discovery and collaboration initiation
+async function requestCollaborationForComplexTask(taskDescription: string) {
+  const conversationResult = await mcpClient.callTool('initiate_conversation', {
+    platform: 'discord',
+    content: `🤝 **Multi-Agent Collaboration Request**\n\n**Task**: ${taskDescription}\n\nThis task requires coordination between multiple agents. I'm initiating this thread to coordinate our efforts and prevent conflicts.\n\n**Required Capabilities**:\n• Database operations\n• API integrations\n• File system management\n• Testing and validation\n\n**Status**: Looking for available agents to join this collaboration.\n\nPlease respond if you have the required capabilities and availability.`,
+    agentId: 'coordination-agent'
+  });
+  
+  const messageId = conversationResult.content[0].text.match(/Message ID: ([a-zA-Z0-9-]+)/)?.[1];
+  
+  if (messageId) {
+    // Set up coordination workflow with regular status updates
+    await mcpClient.callTool('update_user', {
+      messageId,
+      updateContent: `📋 **Coordination Plan**:\n\n1. **Phase 1**: Database schema updates (requires db-agent)\n2. **Phase 2**: API endpoint modifications (requires api-agent)\n3. **Phase 3**: File processing updates (requires file-agent)\n4. **Phase 4**: Integration testing (requires test-agent)\n\n🔄 I'll coordinate the handoffs between phases and ensure proper beep/boop file management throughout.\n\n⏰ **Next**: Waiting for agent availability confirmations.`
+    });
+  }
+  
+  return messageId; // Return for continued coordination
+}
+```
+
 ## Best Practices
 
 ### Directory Selection
@@ -136,6 +455,47 @@ await mcpClient.callTool('end_work', {
 - If you find your own stale `boop` file, use `end_work` to clean up
 - If you find another agent's stale `boop` file, alert the user
 - For `INVALID_STATE`, recommend manual inspection of both files
+
+### Discord/Slack Integration Best Practices
+
+**Message Handling:**
+- Always acknowledge user requests immediately with `update_user`
+- Provide regular progress updates for long-running tasks
+- Use clear, informative messages with appropriate emojis for visual clarity
+- Handle errors gracefully and provide actionable next steps
+
+**Coordination with Communication:**
+- Check coordination status BEFORE claiming work, even for user requests
+- Notify users if their request conflicts with ongoing work
+- Use `update_user` to keep users informed throughout the coordination workflow
+- Provide estimated completion times when possible
+
+**Message Flow Patterns:**
+```typescript
+// Pattern: Immediate acknowledgment + status checking
+await mcpClient.callTool('update_user', {
+  messageId,
+  updateContent: "🔍 Checking if I can start this task..."
+});
+
+// Check status and handle conflicts
+const status = await mcpClient.callTool('check_status', { directory });
+if (status.includes('WORK_IN_PROGRESS')) {
+  await mcpClient.callTool('update_user', {
+    messageId,
+    updateContent: "⚠️ Another agent is working on this. I'll queue your request."
+  });
+  return;
+}
+
+// Continue with work and regular updates
+```
+
+**Thread Management:**
+- Use descriptive thread names for complex tasks
+- Keep related work in the same thread when possible
+- Close/acknowledge threads when tasks are complete
+- Tag relevant users when additional input is needed
 
 ### Interactive steps and user threads (Discord)
 When an agent needs user input to proceed:
