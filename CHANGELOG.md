@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.1] - 2025-08-23
+
+- docs: update CHANGELOG.md for v1.3.0 inbox cleanup system
+- Merge remote-tracking branch 'origin/main' into main
+- Delete .beep-boop-inbox/04fa4cb8-aea2-4785-afcc-ea5a9b47d167.json
+
 ## [1.3.0] - 2025-08-22
 
 ### Added
