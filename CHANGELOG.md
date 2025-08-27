@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.2] - 2025-08-27
+
+- Working version checkpoint
+
 ## [1.3.1] - 2025-08-23
 
 - docs: update CHANGELOG.md for v1.3.0 inbox cleanup system
